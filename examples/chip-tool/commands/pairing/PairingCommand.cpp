@@ -56,6 +56,8 @@ CHIP_ERROR PairingCommand::RunInternal(NodeId remoteId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
+    gInteractiveWsInstance.WsSend("RunInternal");
+
     switch (mPairingMode)
     {
     case PairingMode::None:

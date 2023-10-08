@@ -80,7 +80,20 @@ public:
     /////////// RemoteDataModelLoggerDelegate interface /////////
     CHIP_ERROR LogJSON(const char * json) override;
 
+    CHIP_ERROR WsSend(const char * msg);
 private:
     WebSocketServer mWebSocketServer;
     chip::Optional<uint16_t> mPort;
 };
+
+class InteractiveWsInstance
+{
+public:
+    CHIP_ERROR WsSend(const char * msg);
+    InteractiveServerCommand * iServer;
+};
+
+// Usage:
+// 1. #include "../interactive/InteractiveCommands.h"
+// 2. gInteractiveWsInstance.WsSend("");
+extern InteractiveWsInstance gInteractiveWsInstance;

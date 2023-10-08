@@ -29,6 +29,8 @@ constexpr const char * kCategoryError                  = "Error";
 constexpr const char * kCategoryProgress               = "Info";
 constexpr const char * kCategoryDetail                 = "Debug";
 
+InteractiveWsInstance gInteractiveWsInstance;
+
 namespace {
 
 void ClearLine()
@@ -287,6 +289,8 @@ CHIP_ERROR InteractiveServerCommand::RunCommand()
     RemoteDataModelLogger::SetDelegate(this);
     ReturnErrorOnFailure(mWebSocketServer.Run(mPort, this));
 
+    gInteractiveWsInstance.iServer = this;
+
     gInteractiveServerResult.Reset();
     SetCommandExitStatus(CHIP_NO_ERROR);
     return CHIP_NO_ERROR;
@@ -324,6 +328,18 @@ CHIP_ERROR InteractiveServerCommand::LogJSON(const char * json)
         mWebSocketServer.Send(gInteractiveServerResult.AsJsonString().c_str());
         gInteractiveServerResult.Reset();
     }
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR InteractiveServerCommand::WsSend(const char * msg)
+{
+    mWebSocketServer.Send(msg);
+    return CHIP_NO_ERROR;
+}
+
+CHIP_ERROR InteractiveWsInstance::WsSend(const char * msg)
+{
+    iServer->WsSend(msg);
     return CHIP_NO_ERROR;
 }
 

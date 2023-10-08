@@ -26,6 +26,7 @@
 #include <commands/common/CredentialIssuerCommands.h>
 #include <lib/support/Span.h>
 #include <lib/support/ThreadOperationalDataset.h>
+#include "../interactive/InteractiveCommands.h"
 
 enum class PairingMode
 {
