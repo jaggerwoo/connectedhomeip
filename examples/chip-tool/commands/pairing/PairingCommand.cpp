@@ -56,8 +56,6 @@ CHIP_ERROR PairingCommand::RunInternal(NodeId remoteId)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
 
-    gInteractiveWsInstance.WsSend("RunInternal");
-
     switch (mPairingMode)
     {
     case PairingMode::None:
@@ -360,10 +358,21 @@ void PairingCommand::OnCommissioningComplete(NodeId nodeId, CHIP_ERROR err)
     if (err == CHIP_NO_ERROR)
     {
         ChipLogProgress(chipTool, "Device commissioning completed with success");
+        std::stringstream content;
+        content << "{\"queue\":\"devices\",";
+        content << "\"node_id\":\"" << nodeId << "\",";
+        content << "\"op_state\":\"device_added\"}";
+        gInteractiveWsInstance.WsSend(content.str().c_str());
     }
     else
     {
         ChipLogProgress(chipTool, "Device commissioning Failure: %s", ErrorStr(err));
+        std::stringstream content;
+        content << "{\"queue\":\"devices\",";
+        content << "\"node_id\":\"" << nodeId << "\",";
+        content << "\"error\":\"" << ErrorStr(err) << "\",";
+        content << "\"op_state\":\"device_failed\"}";
+        gInteractiveWsInstance.WsSend(content.str().c_str());
     }
 
     SetCommandExitStatus(err);
@@ -411,10 +420,21 @@ void PairingCommand::OnCurrentFabricRemove(void * context, NodeId nodeId, CHIP_E
     if (err == CHIP_NO_ERROR)
     {
         ChipLogProgress(chipTool, "Device unpair completed with success: " ChipLogFormatX64, ChipLogValueX64(nodeId));
+        std::stringstream content;
+        content << "{\"queue\":\"devices\",";
+        content << "\"node_id\":\"" << nodeId << "\",";
+        content << "\"op_state\":\"removed\"}";
+        gInteractiveWsInstance.WsSend(content.str().c_str());
     }
     else
     {
         ChipLogProgress(chipTool, "Device unpair Failure: " ChipLogFormatX64 " %s", ChipLogValueX64(nodeId), ErrorStr(err));
+        std::stringstream content;
+        content << "{\"queue\":\"devices\",";
+        content << "\"node_id\":\"" << nodeId << "\",";
+        content << "\"error\":\"" << ErrorStr(err) << "\",";
+        content << "\"op_state\":\"remove_failed\"}";
+        gInteractiveWsInstance.WsSend(content.str().c_str());
     }
 
     command->SetCommandExitStatus(err);

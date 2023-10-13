@@ -134,6 +134,7 @@ public:
          * @param[in] aStatus      Attribute-specific status, containing an InteractionModel::Status code as well as an
          *                         optional cluster-specific status code.
          */
+        virtual void OnNodeId(::chip::NodeId nodeID) {}
         virtual void OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus) {}
 
         /**

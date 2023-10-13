@@ -22,13 +22,21 @@
 
 #include "DataModelLogger.h"
 #include "ModelCommand.h"
+#include <app/MessageDef/MessageDefHelper.h>
+#include <lib/support/jsontlv/TlvJson.h>
 
 class ReportCommand : public InteractionModelReports, public ModelCommand, public chip::app::ReadClient::Callback
 {
 public:
-    ReportCommand(const char * commandName, CredentialIssuerCommands * credsIssuerConfig) :
+    ReportCommand(const char * commandName, CredentialIssuerCommands * credsIssuerConfig):
         InteractionModelReports(this), ModelCommand(commandName, credsIssuerConfig, /* supportsMultipleEndpoints = */ true)
     {}
+
+    ::chip::NodeId currentNodeId;
+    void OnNodeId(::chip::NodeId nodeID) override
+    {
+        currentNodeId = nodeID;
+    }
 
     /////////// ReadClient Callback Interface /////////
     void OnAttributeData(const chip::app::ConcreteDataAttributePath & path, chip::TLV::TLVReader * data,
@@ -54,12 +62,60 @@ public:
         LogErrorOnFailure(RemoteDataModelLogger::LogAttributeAsJSON(path, data));
 
         error = DataModelLogger::LogAttribute(path, data);
+        ChipLogDetail(chipTool, "---OnAttributeData--2-");
+
         if (CHIP_NO_ERROR != error)
         {
             ChipLogError(chipTool, "Response Failure: Can not decode Data");
             mError = error;
             return;
         }
+
+        CHIP_ERROR parseDataErr = CHIP_NO_ERROR;
+        Json::Value json;
+        chip::TLV::TLVReader reader;
+        reader.Init(*data);
+        parseDataErr = chip::TlvToJson(reader, json);
+        if (parseDataErr != CHIP_NO_ERROR)
+        {
+            return;
+        }
+        Json::Value value = json["value"];
+
+        std::stringstream nodeID;
+        char nodeIDBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+        snprintf(nodeIDBuf, sizeof(nodeIDBuf), "0x%" PRIx64, currentNodeId);
+        nodeID << nodeIDBuf;
+
+        std::stringstream endpointID;
+        char endpointBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+        snprintf(endpointBuf, sizeof(endpointBuf), "%u", path.mEndpointId);
+        endpointID << endpointBuf;
+
+        std::stringstream clusterID;
+        char clusterBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+        snprintf(clusterBuf, sizeof(clusterBuf), ChipLogFormatMEI, ChipLogValueMEI(path.mClusterId));
+        clusterID << clusterBuf;
+
+        std::stringstream attributeID;
+        char attributeBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+        snprintf(attributeBuf, sizeof(attributeBuf), ChipLogFormatMEI, ChipLogValueMEI(path.mAttributeId));
+        attributeID << attributeBuf;
+        
+        std::stringstream dataVersion;
+        char dataVersionBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+        snprintf(dataVersionBuf, sizeof(dataVersionBuf), "%" PRIu32, path.mDataVersion.ValueOr(0));
+        dataVersion << dataVersionBuf;
+
+        std::stringstream content;
+        content << "{\"queue\":\"spec\",";
+        content << "\"node_id\":\"" << nodeID.str() << "\",";
+        content << "\"endpoint_id\":\"" << endpointID.str() << "\",";
+        content << "\"cluster_id\":\"" << clusterID.str() << "\",";
+        content << "\"attribute_id\":\"" << attributeID.str() << "\",";
+        content << "\"data_version\":\"" << dataVersion.str() << "\",";
+        content << "\"value\":\"" << value << "\"}";
+        gInteractiveWsInstance.WsSend(content.str().c_str());
     }
 
     void OnEventData(const chip::app::EventHeader & eventHeader, chip::TLV::TLVReader * data,

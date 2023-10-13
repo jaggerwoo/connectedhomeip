@@ -68,6 +68,10 @@ private:
     //
     // ReadClient::Callback
     //
+    void OnNodeId(NodeId nodeId) override 
+    { 
+        return mCallback.OnNodeId(nodeId); 
+    }
     void OnReportBegin() override;
     void OnReportEnd() override;
     void OnAttributeData(const ConcreteDataAttributePath & aPath, TLV::TLVReader * apData, const StatusIB & aStatus) override;
