@@ -14,5 +14,5 @@ ssh root@192.168.0.181 "\
 	cd ~/connectedhomeip;\
 	source scripts/activate.sh;\
 	./scripts/examples/gn_build_example.sh examples/chip-tool aaa;\
-	mkdir ~/connectedhomeip/aaa/chip-tool-storage;\
-	~/connectedhomeip/aaa/chip-tool interactive server --paa-trust-store-path ~/connectedhomeip/credentials/production/paa-root-certs --storage-directory ~/connectedhomeip/aaa/chip-tool-storage/"
+	mkdir ~/connectedhomeip/aaa/chip-tool-tmp;\
+	~/connectedhomeip/aaa/chip-tool interactive server --paa-trust-store-path ~/connectedhomeip/credentials/production/paa-root-certs --storage-directory ~/connectedhomeip/aaa/chip-tool-tmp/"
