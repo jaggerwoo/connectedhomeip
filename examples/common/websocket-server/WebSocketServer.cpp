@@ -95,7 +95,7 @@ void LogWebSocketCallbackReason(lws_callback_reasons reason)
         ChipLogDetail(chipTool, "LWS_CALLBACK_CLOSED");
         break;
     case LWS_CALLBACK_SERVER_WRITEABLE:
-        ChipLogDetail(chipTool, "LWS_CALLBACK_SERVER_WRITEABLE");
+        // ChipLogDetail(chipTool, "LWS_CALLBACK_SERVER_WRITEABLE");
         break;
     case LWS_CALLBACK_CLOSED_HTTP:
         ChipLogDetail(chipTool, "LWS_CALLBACK_CLOSED_HTTP");
@@ -179,7 +179,8 @@ CHIP_ERROR WebSocketServer::Run(chip::Optional<uint16_t> port, WebSocketServerDe
 
     while (mRunning)
     {
-        lws_service(context, -1);
+        // lws_service(context, -1);
+        lws_service(context, 0);
 
         std::lock_guard<std::mutex> lock(gMutex);
         if (gMessageQueue.size())
@@ -205,4 +206,8 @@ void WebSocketServer::Send(const char * msg)
 {
     std::lock_guard<std::mutex> lock(gMutex);
     gMessageQueue.push_back(msg);
+    if (gWebSocketInstance)
+    {
+        lws_callback_on_writable(gWebSocketInstance);
+    }
 }

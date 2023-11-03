@@ -1,18 +1,21 @@
 #!/bin/bash
+dev_host=root@192.168.0.181
+target_root=~/connectedhomeip
 
-scp ./examples/chip-tool/commands/interactive/InteractiveCommands.cpp root@192.168.0.181:~/connectedhomeip/examples/chip-tool/commands/interactive/InteractiveCommands.cpp
-scp ./examples/chip-tool/commands/interactive/InteractiveCommands.h root@192.168.0.181:~/connectedhomeip/examples/chip-tool/commands/interactive/InteractiveCommands.h
-scp ./examples/chip-tool/commands/pairing/PairingCommand.cpp root@192.168.0.181:~/connectedhomeip/examples/chip-tool/commands/pairing/PairingCommand.cpp
-scp ./examples/chip-tool/commands/pairing/PairingCommand.h root@192.168.0.181:~/connectedhomeip/examples/chip-tool/commands/pairing/PairingCommand.h
-scp ./examples/chip-tool/commands/clusters/ReportCommand.h root@192.168.0.181:~/connectedhomeip/examples/chip-tool/commands/clusters/ReportCommand.h
-scp ./src/app/ReadClient.cpp root@192.168.0.181:~/connectedhomeip/src/app/ReadClient.cpp
-scp ./src/app/ReadClient.h root@192.168.0.181:~/connectedhomeip/src/app/ReadClient.h
-scp ./src/app/BufferedReadCallback.cpp root@192.168.0.181:~/connectedhomeip/src/app/BufferedReadCallback.cpp
-scp ./src/app/BufferedReadCallback.h root@192.168.0.181:~/connectedhomeip/src/app/BufferedReadCallback.h
+scp ./examples/chip-tool/commands/interactive/InteractiveCommands.cpp $dev_host:$target_root/examples/chip-tool/commands/interactive/InteractiveCommands.cpp
+scp ./examples/chip-tool/commands/interactive/InteractiveCommands.h $dev_host:$target_root/examples/chip-tool/commands/interactive/InteractiveCommands.h
+scp ./examples/chip-tool/commands/pairing/PairingCommand.cpp $dev_host:$target_root/examples/chip-tool/commands/pairing/PairingCommand.cpp
+scp ./examples/chip-tool/commands/pairing/PairingCommand.h $dev_host:$target_root/examples/chip-tool/commands/pairing/PairingCommand.h
+scp ./examples/chip-tool/commands/clusters/ReportCommand.h $dev_host:$target_root/examples/chip-tool/commands/clusters/ReportCommand.h
+scp ./src/app/ReadClient.cpp $dev_host:$target_root/src/app/ReadClient.cpp
+scp ./src/app/ReadClient.h $dev_host:$target_root/src/app/ReadClient.h
+scp ./src/app/BufferedReadCallback.cpp $dev_host:$target_root/src/app/BufferedReadCallback.cpp
+scp ./src/app/BufferedReadCallback.h $dev_host:$target_root/src/app/BufferedReadCallback.h
+scp ./examples/common/websocket-server/WebSocketServer.cpp $dev_host:$target_root/examples/common/websocket-server/WebSocketServer.cpp
 
-ssh root@192.168.0.181 "\
+ssh $dev_host "\
 	cd ~/connectedhomeip;\
 	source scripts/activate.sh;\
 	./scripts/examples/gn_build_example.sh examples/chip-tool aaa;\
-	mkdir ~/connectedhomeip/aaa/chip-tool-tmp;\
-	~/connectedhomeip/aaa/chip-tool interactive server --paa-trust-store-path ~/connectedhomeip/credentials/production/paa-root-certs --storage-directory ~/connectedhomeip/aaa/chip-tool-tmp/"
+	cp ~/connectedhomeip/aaa/chip-tool /usr/local/presen/pi/;"\
+	~/connectedhomeip/aaa/chip-tool interactive server --paa-trust-store-path /usr/local/etc/presen/chip_tool/credentials --storage-directory /usr/local/etc/presen/chip_tool/config;
