@@ -21,14 +21,21 @@ You can use this example as a reference for creating your own application.
 2. Activate the build environment:
 
     ```bash
-    $ source ./scripts/activate.sh
+    $ source ./scripts/activate.sh -p all,telink
     ```
 
 3. In the example dir run (replace _<build_target>_ with your board name, for
-   example, `tlsr9518adk80d` or `tlsr9528a`):
+   example, `tlsr9518adk80d`, `tlsr9528a` or `tlsr9258a`):
 
     ```bash
     $ west build -b <build_target>
+    ```
+
+    Also use key `-DFLASH_SIZE`, if your board has memory size different from 2
+    MB, for example, `-DFLASH_SIZE=1m` or `-DFLASH_SIZE=4m`:
+
+    ```bash
+    $ west build -b tlsr9518adk80d -- -DFLASH_SIZE=4m
     ```
 
 4. Flash binary:

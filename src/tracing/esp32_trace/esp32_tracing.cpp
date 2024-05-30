@@ -16,16 +16,119 @@
  *    limitations under the License.
  */
 
-#include "esp32_tracing.h"
+#include <algorithm>
 #include <esp_heap_caps.h>
 #include <esp_insights.h>
 #include <esp_log.h>
 #include <memory>
 #include <tracing/backend.h>
+#include <tracing/esp32_trace/counter.h>
+#include <tracing/esp32_trace/esp32_tracing.h>
 
 namespace chip {
 namespace Tracing {
 namespace Insights {
+namespace {
+
+constexpr size_t kPermitListMaxSize = 20;
+using HashValue                     = uint32_t;
+
+// Implements a murmurhash with 0 seed.
+uint32_t MurmurHash(const void * key)
+{
+    const uint32_t kMultiplier = 0x5bd1e995;
+    const uint32_t kShift      = 24;
+    const unsigned char * data = (const unsigned char *) key;
+    uint32_t hash              = 0;
+
+    while (*data)
+    {
+        uint32_t value = *data++;
+        value *= kMultiplier;
+        value ^= value >> kShift;
+        value *= kMultiplier;
+        hash *= kMultiplier;
+        hash ^= value;
+    }
+
+    hash ^= hash >> 13;
+    hash *= kMultiplier;
+    hash ^= hash >> 15;
+
+    if (hash == 0)
+    {
+        ESP_LOGW("Tracing", "MurmurHash resulted in a hash value of 0");
+    }
+
+    return hash;
+}
+
+/* PASESession,CASESession,NetworkCommissioning,GeneralCommissioning,OperationalCredentials
+ * are well known permitted entries.
+ */
+
+HashValue gPermitList[kPermitListMaxSize] = { MurmurHash("PASESession"),
+                                              MurmurHash("CASESession"),
+                                              MurmurHash("NetworkCommissioning"),
+                                              MurmurHash("GeneralCommissioning"),
+                                              MurmurHash("OperationalCredentials"),
+                                              MurmurHash("CASEServer"),
+                                              MurmurHash("Fabric") }; // namespace
+
+bool IsPermitted(HashValue hashValue)
+{
+    for (HashValue permitted : gPermitList)
+    {
+        if (permitted == 0)
+        {
+            break;
+        }
+        if (hashValue == permitted)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
+
+namespace ESP32Filter {
+
+CHIP_ERROR AddHashToPermitlist(const char * str)
+{
+    HashValue hashValue = MurmurHash(str);
+    if (hashValue == 0)
+    {
+        ESP_LOGW("TRC", "Hash value for '%s' is 0", str);
+        return CHIP_ERROR_INCORRECT_STATE;
+    }
+
+    for (HashValue & permitted : gPermitList)
+    {
+        if (permitted == 0)
+        {
+            permitted = hashValue;
+            return CHIP_NO_ERROR;
+        }
+        if (hashValue == permitted)
+        {
+            ESP_LOGW("TRC", "Hash value for '%s' is colliding with an existing entry", str);
+            return CHIP_ERROR_DUPLICATE_KEY_ID;
+        }
+    }
+    return CHIP_ERROR_NO_MEMORY;
+}
+
+void RemoveHashFromPermitlist(const char * str)
+{
+    HashValue hashValue = MurmurHash(str);
+
+    auto * end = gPermitList + kPermitListMaxSize;
+    std::fill(std::remove(gPermitList, end, hashValue), end, 0);
+}
+
+} // namespace ESP32Filter
 
 #define LOG_HEAP_INFO(label, group, entry_exit)                                                                                    \
     do                                                                                                                             \
@@ -46,14 +149,39 @@ void ESP32Backend::LogNodeDiscovered(NodeDiscoveredInfo & info) {}
 
 void ESP32Backend::LogNodeDiscoveryFailed(NodeDiscoveryFailedInfo & info) {}
 
+void ESP32Backend::TraceCounter(const char * label)
+{
+    ::Insights::ESPInsightsCounter::GetInstance(label)->ReportMetrics();
+}
+
+void ESP32Backend::TraceMetric(const char * label, int32_t value)
+{
+    if (!mRegistered)
+    {
+        esp_diag_metrics_register("SYS_MTR" /*Tag of metrics */, label /* Unique key 8 */, label /* label displayed on dashboard */,
+                                  "insights.mtr" /* hierarchical path */, ESP_DIAG_DATA_TYPE_INT /* data_type */);
+        mRegistered = true;
+    }
+    ESP_LOGI("mtr", "The value of %s is %ld ", label, value);
+    esp_diag_metrics_add_int(label, value);
+}
+
 void ESP32Backend::TraceBegin(const char * label, const char * group)
 {
-    LOG_HEAP_INFO(label, group, "Entry");
+    HashValue hashValue = MurmurHash(group);
+    if (IsPermitted(hashValue))
+    {
+        LOG_HEAP_INFO(label, group, "Entry");
+    }
 }
 
 void ESP32Backend::TraceEnd(const char * label, const char * group)
 {
-    LOG_HEAP_INFO(label, group, "Exit");
+    HashValue hashValue = MurmurHash(group);
+    if (IsPermitted(hashValue))
+    {
+        LOG_HEAP_INFO(label, group, "Exit");
+    }
 }
 
 void ESP32Backend::TraceInstant(const char * label, const char * group)
@@ -63,4 +191,3 @@ void ESP32Backend::TraceInstant(const char * label, const char * group)
 } // namespace Insights
 } // namespace Tracing
 } // namespace chip
-// namespace chip

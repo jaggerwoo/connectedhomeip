@@ -23,9 +23,8 @@
 #include <lib/support/CHIPMem.h>
 #include <lib/support/StringBuilder.h>
 #include <lib/support/StringSplitter.h>
-#include <transport/TracingStructs.h>
-
 #include <log_json/log_json_build_config.h>
+#include <transport/TracingStructs.h>
 
 #include <json/json.h>
 
@@ -276,6 +275,35 @@ void JsonBackend::TraceInstant(const char * label, const char * group)
     OutputValue(value);
 }
 
+void JsonBackend::TraceCounter(const char * label)
+{
+    std::string counterId = std::string(label);
+    if (mCounters.find(counterId) == mCounters.end())
+    {
+        mCounters[counterId] = 1;
+    }
+    else
+    {
+        mCounters[counterId]++;
+    }
+    ::Json::Value value;
+    value["event"] = "TraceCounter";
+    value["label"] = label;
+    value["count"] = mCounters[counterId];
+
+    // Output the counter event
+    OutputValue(value);
+}
+
+void JsonBackend::TraceMetric(const char * label, int32_t val)
+{
+    ::Json::Value value;
+    value["label"] = label;
+    value["value"] = val;
+
+    OutputValue(value);
+}
+
 void JsonBackend::LogMessageSend(MessageSendInfo & info)
 {
     ::Json::Value value;
@@ -375,6 +403,8 @@ void JsonBackend::LogNodeDiscovered(NodeDiscoveredInfo & info)
         result["mrp"]["idle_retransmit_timeout_ms"]   = info.result->mrpRemoteConfig.mIdleRetransTimeout.count();
         result["mrp"]["active_retransmit_timeout_ms"] = info.result->mrpRemoteConfig.mActiveRetransTimeout.count();
         result["mrp"]["active_threshold_time_ms"]     = info.result->mrpRemoteConfig.mActiveThresholdTime.count();
+
+        result["isICDOperatingAsLIT"] = info.result->isICDOperatingAsLIT;
 
         value["result"] = result;
     }

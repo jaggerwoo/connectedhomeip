@@ -1,6 +1,6 @@
 /*
  *
- *    Copyright (c) 2021 Project CHIP Authors
+ *    Copyright (c) 2021-2024 Project CHIP Authors
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -19,11 +19,11 @@
 
 #include <cstdint>
 #include <jni.h>
+#include <lib/support/CHIPJNIError.h>
 #include <lib/support/JniReferences.h>
 #include <lib/support/Span.h>
 #include <string>
 
-#define JNI_LOCAL_REF_COUNT 256
 namespace chip {
 /// Exposes the underlying UTF string from a jni string
 class JniUtfString
@@ -166,60 +166,19 @@ private:
     jbyteArray mArray = nullptr;
 };
 
-/// Manages an pre-existing global reference to a jclass.
-class JniClass
+// Manages an pre-existing global reference to a jobject.
+class JniGlobalRefWrapper
 {
 public:
-    explicit JniClass(jclass mClassRef) : mClassRef(mClassRef) {}
-    ~JniClass() { chip::JniReferences::GetInstance().GetEnvForCurrentThread()->DeleteGlobalRef(mClassRef); }
-
-    jclass classRef() { return mClassRef; }
+    explicit JniGlobalRefWrapper(jobject mGlobalRef) : mGlobalRef(mGlobalRef) {}
+    ~JniGlobalRefWrapper()
+    {
+        chip::JniReferences::GetInstance().GetEnvForCurrentThread()->DeleteGlobalRef(mGlobalRef);
+        mGlobalRef = nullptr;
+    }
+    jobject classRef() { return mGlobalRef; }
 
 private:
-    jclass mClassRef;
+    jobject mGlobalRef = nullptr;
 };
-
-class JniLocalReferenceManager
-{
-public:
-    JniLocalReferenceManager(JNIEnv * env) : mEnv(env)
-    {
-        if (mEnv->PushLocalFrame(JNI_LOCAL_REF_COUNT) == 0)
-        {
-            mlocalFramePushed = true;
-        }
-    }
-    ~JniLocalReferenceManager()
-    {
-        if (mlocalFramePushed)
-        {
-            mEnv->PopLocalFrame(nullptr);
-            mlocalFramePushed = false;
-        }
-    }
-
-private:
-    JNIEnv * mEnv          = nullptr;
-    bool mlocalFramePushed = false;
-};
-
-class JniObject
-{
-public:
-    JniObject(JNIEnv * aEnv, jobject aObjectRef) : mEnv(aEnv), mObjectRef(aObjectRef) {}
-    ~JniObject()
-    {
-        if (mEnv != nullptr && mObjectRef != nullptr)
-        {
-            mEnv->DeleteGlobalRef(mObjectRef);
-        }
-    }
-
-    jobject objectRef() { return mObjectRef; }
-
-private:
-    JNIEnv * mEnv      = nullptr;
-    jobject mObjectRef = nullptr;
-};
-
 } // namespace chip

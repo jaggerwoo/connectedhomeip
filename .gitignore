@@ -82,3 +82,6 @@ examples/*/esp32/managed_components
 examples/*/esp32/dependencies.lock
 
 aaa/
+
+# jupyter temporary files
+.ipynb_checkpoints

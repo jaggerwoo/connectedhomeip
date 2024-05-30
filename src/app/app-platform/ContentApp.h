@@ -23,16 +23,17 @@
 #pragma once
 
 #include <app-common/zap-generated/cluster-objects.h>
-#include <app-common/zap-generated/enums.h>
 #include <app/clusters/account-login-server/account-login-delegate.h>
 #include <app/clusters/application-basic-server/application-basic-delegate.h>
 #include <app/clusters/application-launcher-server/application-launcher-delegate.h>
 #include <app/clusters/channel-server/channel-delegate.h>
+#include <app/clusters/content-control-server/content-control-delegate.h>
 #include <app/clusters/content-launch-server/content-launch-delegate.h>
 #include <app/clusters/keypad-input-server/keypad-input-delegate.h>
 #include <app/clusters/media-playback-server/media-playback-delegate.h>
 #include <app/clusters/target-navigator-server/target-navigator-delegate.h>
 #include <app/util/attribute-storage.h>
+#include <protocols/interaction_model/StatusCode.h>
 
 namespace chip {
 namespace AppPlatform {
@@ -42,6 +43,7 @@ using ApplicationBasicDelegate    = app::Clusters::ApplicationBasic::Delegate;
 using ApplicationLauncherDelegate = app::Clusters::ApplicationLauncher::Delegate;
 using ChannelDelegate             = app::Clusters::Channel::Delegate;
 using ContentLauncherDelegate     = app::Clusters::ContentLauncher::Delegate;
+using ContentControlDelegate      = app::Clusters::ContentControl::Delegate;
 using KeypadInputDelegate         = app::Clusters::KeypadInput::Delegate;
 using MediaPlaybackDelegate       = app::Clusters::MediaPlayback::Delegate;
 using TargetNavigatorDelegate     = app::Clusters::TargetNavigator::Delegate;
@@ -59,12 +61,14 @@ public:
     virtual ApplicationLauncherDelegate * GetApplicationLauncherDelegate() = 0;
     virtual ChannelDelegate * GetChannelDelegate()                         = 0;
     virtual ContentLauncherDelegate * GetContentLauncherDelegate()         = 0;
+    virtual ContentControlDelegate * GetContentControlDelegate()           = 0;
     virtual KeypadInputDelegate * GetKeypadInputDelegate()                 = 0;
     virtual MediaPlaybackDelegate * GetMediaPlaybackDelegate()             = 0;
     virtual TargetNavigatorDelegate * GetTargetNavigatorDelegate()         = 0;
 
-    EmberAfStatus HandleReadAttribute(ClusterId clusterId, AttributeId attributeId, uint8_t * buffer, uint16_t maxReadLength);
-    EmberAfStatus HandleWriteAttribute(ClusterId clusterId, AttributeId attributeId, uint8_t * buffer);
+    Protocols::InteractionModel::Status HandleReadAttribute(ClusterId clusterId, AttributeId attributeId, uint8_t * buffer,
+                                                            uint16_t maxReadLength);
+    Protocols::InteractionModel::Status HandleWriteAttribute(ClusterId clusterId, AttributeId attributeId, uint8_t * buffer);
 
 protected:
     EndpointId mEndpointId = 0;

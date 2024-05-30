@@ -36,7 +36,9 @@
 #include <platform/CHIPDeviceEvent.h>
 #include <platform/CHIPDeviceLayer.h>
 
-#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+#include "LEDWidget.h"
+
+#ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
 #include <app/clusters/identify-server/identify-server.h>
 #endif
 
@@ -70,6 +72,9 @@ class BaseApplication
 public:
     BaseApplication() = default;
     virtual ~BaseApplication(){};
+    static bool sIsProvisioned;
+    static bool sIsFactoryResetTriggered;
+    static LEDWidget * sAppActionLed;
 
     /**
      * @brief Create AppTask task and Event Queue
@@ -80,17 +85,38 @@ public:
     CHIP_ERROR StartAppTask(TaskFunction_t taskFunction);
 
     /**
+     * @brief Links the application specific led to the baseApplication context
+     * in order to synchronize both LED animations.
+     * Some apps may not have an application led or no animation patterns.
+     *
+     * @param appLed Pointer to the configure LEDWidget for the application defined LED
+     */
+    void LinkAppLed(LEDWidget * appLed) { sAppActionLed = appLed; }
+
+    /**
+     * @brief Remove the app Led linkage form the baseApplication context
+     */
+    void UnlinkAppLed() { sAppActionLed = nullptr; }
+
+    /**
      * @brief PostEvent function that add event to AppTask queue for processing
      *
      * @param event AppEvent to post
      */
     static void PostEvent(const AppEvent * event);
 
+    /**
+     * @brief Overridable function used to update display on button press
+     */
+    virtual void UpdateDisplay();
+
 #ifdef DISPLAY_ENABLED
     /**
      * @brief Return LCD object
      */
     static SilabsLCD & GetLCD(void);
+
+    static void UpdateLCDStatusScreen(void);
 #endif
 
     /**
@@ -103,24 +129,18 @@ public:
      *        Turns off Status LED before stopping timer
      */
     static void StopStatusLEDTimer(void);
+    static bool GetProvisionStatus(void);
 
-#ifdef EMBER_AF_PLUGIN_IDENTIFY_SERVER
+    static void StartFactoryResetSequence(void);
+    static void CancelFactoryResetSequence(void);
+
+#ifdef MATTER_DM_PLUGIN_IDENTIFY_SERVER
     // Idenfiy server command callbacks.
     static void OnIdentifyStart(Identify * identify);
     static void OnIdentifyStop(Identify * identify);
     static void OnTriggerIdentifyEffectCompleted(chip::System::Layer * systemLayer, void * appState);
     static void OnTriggerIdentifyEffect(Identify * identify);
 #endif
-
-    enum Function_t
-    {
-        kFunction_NoneSelected   = 0,
-        kFunction_SoftwareUpdate = 0,
-        kFunction_StartBleAdv    = 1,
-        kFunction_FactoryReset   = 2,
-
-        kFunction_Invalid
-    } Function;
 
 protected:
     CHIP_ERROR Init();

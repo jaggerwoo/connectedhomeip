@@ -22,6 +22,7 @@
 #include "ConversionUtils.h"
 #include "JNIDACProvider.h"
 
+#include <app/data-model/ListLargeSystemExtensions.h>
 #include <app/server/Server.h>
 #include <app/server/java/AndroidAppServerWrapper.h>
 #include <credentials/DeviceAttestationCredsProvider.h>
@@ -32,7 +33,6 @@
 #include <lib/core/Optional.h>
 #include <lib/dnssd/Resolver.h>
 #include <lib/support/CHIPJNIError.h>
-#include <lib/support/CHIPListUtils.h>
 #include <lib/support/JniReferences.h>
 #include <lib/support/JniTypeWrappers.h>
 
@@ -124,7 +124,8 @@ JNI_METHOD(jboolean, openBasicCommissioningWindow)
 
     CommissioningCallbacks commissioningCallbacks;
     jclass jCommissioningCallbacksClass;
-    chip::JniReferences::GetInstance().GetClassRef(env, "com/chip/casting/CommissioningCallbacks", jCommissioningCallbacksClass);
+    chip::JniReferences::GetInstance().GetLocalClassRef(env, "com/chip/casting/CommissioningCallbacks",
+                                                        jCommissioningCallbacksClass);
 
     jfieldID jCommissioningCompleteField =
         env->GetFieldID(jCommissioningCallbacksClass, "commissioningComplete", "Ljava/lang/Object;");
@@ -280,6 +281,25 @@ JNI_METHOD(jboolean, verifyOrEstablishConnection)
 
 exit:
     return (err == CHIP_NO_ERROR);
+}
+
+JNI_METHOD(jboolean, WasRecentlyDiscoverable)
+(JNIEnv * env, jobject, jobject videoPlayer)
+{
+    chip::DeviceLayer::StackLock lock;
+
+    ChipLogProgress(AppServer, "JNI_METHOD WasRecentlyDiscoverable called");
+
+    TargetVideoPlayerInfo targetVideoPlayerInfo;
+    CHIP_ERROR err = convertJVideoPlayerToTargetVideoPlayerInfo(videoPlayer, targetVideoPlayerInfo);
+    VerifyOrExit(err == CHIP_NO_ERROR,
+                 ChipLogError(AppServer,
+                              "Conversion from jobject VideoPlayer to TargetVideoPlayerInfo * failed: %" CHIP_ERROR_FORMAT,
+                              err.Format()));
+    return targetVideoPlayerInfo.WasRecentlyDiscoverable();
+
+exit:
+    return false; // default to false
 }
 
 JNI_METHOD(void, shutdownAllSubscriptions)(JNIEnv * env, jobject)
@@ -439,8 +459,8 @@ CHIP_ERROR CreateContentSearch(JNIEnv * env, jobject jSearch,
                                ListFreer & listFreer)
 {
     jclass jContentSearchClass;
-    ReturnErrorOnFailure(
-        JniReferences::GetInstance().GetClassRef(env, "com/chip/casting/ContentLauncherTypes$ContentSearch", jContentSearchClass));
+    ReturnErrorOnFailure(JniReferences::GetInstance().GetLocalClassRef(env, "com/chip/casting/ContentLauncherTypes$ContentSearch",
+                                                                       jContentSearchClass));
 
     jfieldID jParameterListField = env->GetFieldID(jContentSearchClass, "parameterList", "Ljava/util/ArrayList;");
     jobject jParameterList       = env->GetObjectField(jSearch, jParameterListField);
@@ -590,7 +610,7 @@ JNI_METHOD(jboolean, levelControl_1step)
                  ChipLogError(AppServer, "MatterCallbackHandlerJNI.SetUp failed %" CHIP_ERROR_FORMAT, err.Format()));
 
     err = CastingServer::GetInstance()->LevelControl_Step(
-        &endpoint, static_cast<chip::app::Clusters::LevelControl::StepMode>(stepMode), static_cast<uint8_t>(stepSize),
+        &endpoint, static_cast<chip::app::Clusters::LevelControl::StepModeEnum>(stepMode), static_cast<uint8_t>(stepSize),
         static_cast<uint16_t>(transitionTime), static_cast<uint8_t>(optionMask), static_cast<uint8_t>(optionOverride),
         [](CHIP_ERROR err) { TvCastingAppJNIMgr().getMediaCommandResponseHandler(LevelControl_Step).Handle(err); });
     VerifyOrExit(CHIP_NO_ERROR == err,
@@ -1644,7 +1664,7 @@ JNI_METHOD(jboolean, keypadInput_1sendKey)
                  ChipLogError(AppServer, "MatterCallbackHandlerJNI.SetUp failed %" CHIP_ERROR_FORMAT, err.Format()));
 
     err = CastingServer::GetInstance()->KeypadInput_SendKey(
-        &endpoint, static_cast<chip::app::Clusters::KeypadInput::CecKeyCode>(keyCode),
+        &endpoint, static_cast<chip::app::Clusters::KeypadInput::CECKeyCodeEnum>(keyCode),
         [](CHIP_ERROR err) { TvCastingAppJNIMgr().getMediaCommandResponseHandler(KeypadInput_SendKey).Handle(err); });
     VerifyOrExit(CHIP_NO_ERROR == err,
                  ChipLogError(AppServer, "CastingServer.KeypadInput_SendKey failed %" CHIP_ERROR_FORMAT, err.Format()));

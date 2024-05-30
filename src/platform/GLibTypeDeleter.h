@@ -60,6 +60,16 @@ struct GErrorDeleter
     void operator()(GError * object) { g_error_free(object); }
 };
 
+struct GIOChannelDeleter
+{
+    void operator()(GIOChannel * object) { g_io_channel_unref(object); }
+};
+
+struct GSourceDeleter
+{
+    void operator()(GSource * object) { g_source_unref(object); }
+};
+
 struct GVariantDeleter
 {
     void operator()(GVariant * object) { g_variant_unref(object); }
@@ -87,9 +97,21 @@ struct GAutoPtrDeleter<char>
 };
 
 template <>
+struct GAutoPtrDeleter<const char *>
+{
+    using deleter = GFree;
+};
+
+template <>
 struct GAutoPtrDeleter<GBytes>
 {
     using deleter = GBytesDeleter;
+};
+
+template <>
+struct GAutoPtrDeleter<GCancellable>
+{
+    using deleter = GObjectDeleter;
 };
 
 template <>
@@ -105,9 +127,15 @@ struct GAutoPtrDeleter<GError>
 };
 
 template <>
+struct GAutoPtrDeleter<GIOChannel>
+{
+    using deleter = GIOChannelDeleter;
+};
+
+template <>
 struct GAutoPtrDeleter<GSource>
 {
-    using deleter = GObjectDeleter;
+    using deleter = GSourceDeleter;
 };
 
 template <>

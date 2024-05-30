@@ -14,6 +14,7 @@ public final class ControllerParams {
   private final boolean attemptNetworkScanWiFi;
   private final boolean attemptNetworkScanThread;
   private final boolean skipCommissioningComplete;
+  private final boolean skipAttestationCertificateValidation;
   private final Optional<String> countryCode;
   private final Optional<Integer> regulatoryLocationType;
   @Nullable private final KeypairDelegate keypairDelegate;
@@ -22,8 +23,6 @@ public final class ControllerParams {
   @Nullable private final byte[] operationalCertificate;
   @Nullable private final byte[] ipk;
   private final long adminSubject;
-
-  private static final int LEGACY_GLOBAL_CHIP_PORT = 5540;
 
   /** @param udpListenPort the UDP listening port, or 0 to pick any available port. */
   private ControllerParams(Builder builder) {
@@ -35,6 +34,7 @@ public final class ControllerParams {
     this.attemptNetworkScanWiFi = builder.attemptNetworkScanWiFi;
     this.attemptNetworkScanThread = builder.attemptNetworkScanThread;
     this.skipCommissioningComplete = builder.skipCommissioningComplete;
+    this.skipAttestationCertificateValidation = builder.skipAttestationCertificateValidation;
     this.countryCode = builder.countryCode;
     this.regulatoryLocationType = builder.regulatoryLocationType;
     this.keypairDelegate = builder.keypairDelegate;
@@ -76,6 +76,10 @@ public final class ControllerParams {
 
   public boolean getSkipCommissioningComplete() {
     return skipCommissioningComplete;
+  }
+
+  public boolean getSkipAttestationCertificateValidation() {
+    return skipAttestationCertificateValidation;
   }
 
   public Optional<String> getCountryCode() {
@@ -132,13 +136,14 @@ public final class ControllerParams {
   /** Builder for {@link ControllerParams}. */
   public static class Builder {
     private long fabricId = 1;
-    private int udpListenPort = LEGACY_GLOBAL_CHIP_PORT + 1;
+    private int udpListenPort = 0;
     private int controllerVendorId = 0xFFFF;
     private int failsafeTimerSeconds = 30;
     private int caseFailsafeTimerSeconds = 0;
     private boolean attemptNetworkScanWiFi = false;
     private boolean attemptNetworkScanThread = false;
     private boolean skipCommissioningComplete = false;
+    private boolean skipAttestationCertificateValidation = false;
     private Optional<String> countryCode = Optional.empty();
     private Optional<Integer> regulatoryLocationType = Optional.empty();
     @Nullable private KeypairDelegate keypairDelegate = null;
@@ -256,6 +261,21 @@ public final class ControllerParams {
      */
     public Builder setSkipCommissioningComplete(boolean skipCommissioningComplete) {
       this.skipCommissioningComplete = skipCommissioningComplete;
+      return this;
+    }
+
+    /**
+     * Used when the Commissioner disables Attestation Certificate Validation.
+     *
+     * <p>Specifically, this sets SkipAttestationCertificateValidation in the
+     * CommissioningParameters passed to the CommissioningDelegate.
+     *
+     * @param skipAttestationCertificateValidation
+     * @return
+     */
+    public Builder setSkipAttestationCertificateValidation(
+        boolean skipAttestationCertificateValidation) {
+      this.skipAttestationCertificateValidation = skipAttestationCertificateValidation;
       return this;
     }
 

@@ -17,10 +17,6 @@
         {
             "name": "header",
             "path": "partials/header.zapt"
-        },
-        {
-            "name": "im_command_handler_cluster_commands",
-            "path": "partials/im_command_handler_cluster_commands.zapt"
         }
     ],
     "templates": [
@@ -38,11 +34,6 @@
             "path": "templates/app/im-cluster-command-handler.zapt",
             "name": "CHIP Client Callbacks for Interaction Model",
             "output": "IMClusterCommandHandler.cpp"
-        },
-        {
-            "path": "templates/app/CHIPClusters.zapt",
-            "name": "C++ ZCL API Header",
-            "output": "CHIPClusters.h"
         },
         {
             "path": "templates/app/access.zapt",

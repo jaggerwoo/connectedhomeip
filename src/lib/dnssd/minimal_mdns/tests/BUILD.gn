@@ -19,8 +19,10 @@ import("//build_overrides/nlunit_test.gni")
 import("${chip_root}/build/chip/chip_test_suite.gni")
 import("${chip_root}/build/chip/fuzz_test.gni")
 
-chip_test_suite("tests") {
+chip_test_suite_using_nltest("tests") {
   output_name = "libMinimalMdnstests"
+
+  sources = [ "CheckOnlyServer.h" ]
 
   test_sources = [
     "TestMinimalMdnsAllocator.cpp",
@@ -38,7 +40,7 @@ chip_test_suite("tests") {
     "${chip_root}/src/lib/core",
     "${chip_root}/src/lib/dnssd",
     "${chip_root}/src/lib/dnssd/minimal_mdns",
-    "${chip_root}/src/lib/support:testing",
+    "${chip_root}/src/lib/support:testing_nlunit",
     "${chip_root}/src/transport/raw/tests:helpers",
     "${nlunit_test_root}:nlunit-test",
   ]

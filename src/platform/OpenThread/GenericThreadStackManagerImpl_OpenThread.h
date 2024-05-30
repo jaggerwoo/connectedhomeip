@@ -37,7 +37,6 @@
 #include <openthread/dns_client.h>
 #endif
 
-#include <app/AttributeAccessInterface.h>
 #include <lib/dnssd/Advertiser.h>
 #include <lib/dnssd/platform/Dnssd.h>
 #include <platform/NetworkCommissioning.h>
@@ -111,7 +110,6 @@ protected:
     CHIP_ERROR _GetPrimary802154MACAddress(uint8_t * buf);
     CHIP_ERROR _GetExternalIPv6Address(chip::Inet::IPAddress & addr);
     void _ResetThreadNetworkDiagnosticsCounts(void);
-    CHIP_ERROR _WriteThreadNetworkDiagnosticAttributeToTlv(AttributeId attributeId, app::AttributeValueEncoder & encoder);
     CHIP_ERROR _GetPollPeriod(uint32_t & buf);
     void _OnWoBLEAdvertisingStart(void);
     void _OnWoBLEAdvertisingStop(void);
@@ -163,10 +161,10 @@ private:
 
     struct SrpClient
     {
-        static constexpr uint8_t kMaxServicesNumber      = CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES;
-        static constexpr const char * kDefaultDomainName = "default.service.arpa";
-        static constexpr uint8_t kDefaultDomainNameSize  = 20;
-        static constexpr uint8_t kMaxDomainNameSize      = 32;
+        static constexpr uint8_t kMaxServicesNumber     = CHIP_DEVICE_CONFIG_THREAD_SRP_MAX_SERVICES;
+        static constexpr char kDefaultDomainName[]      = "default.service.arpa";
+        static constexpr uint8_t kDefaultDomainNameSize = 20;
+        static constexpr uint8_t kMaxDomainNameSize     = 32;
 
         // SRP is used for both operational and commissionable services, so buffers sizes must be worst case.
         static constexpr size_t kSubTypeMaxNumber   = Dnssd::Common::kSubTypeMaxNumber;

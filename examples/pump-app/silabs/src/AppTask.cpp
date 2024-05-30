@@ -26,7 +26,6 @@
 #include "LEDWidget.h"
 
 #include <app/clusters/on-off-server/on-off-server.h>
-#include <app/clusters/scenes-server/scenes-server.h>
 #include <app/server/OnboardingCodesUtil.h>
 #include <app/server/Server.h>
 #include <app/util/attribute-storage.h>
@@ -243,11 +242,11 @@ void AppTask::ActionCompleted(PumpManager::Action_t aAction, int32_t aActor)
 void AppTask::UpdateClusterState(intptr_t context)
 {
     // Set On/Off state
-    EmberStatus status;
+    Protocols::InteractionModel::Status status;
     bool onOffState = !PumpMgr().IsStopped();
     status          = chip::app::Clusters::OnOff::Attributes::OnOff::Set(PCC_CLUSTER_ENDPOINT, onOffState);
-    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    if (status != Protocols::InteractionModel::Status::Success)
     {
-        ChipLogError(NotSpecified, "ERR: Updating On/Off state  %x", status);
+        ChipLogError(NotSpecified, "ERR: Updating On/Off state  %x", to_underlying(status));
     }
 }

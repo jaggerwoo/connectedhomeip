@@ -34,7 +34,7 @@
 #include <platform/ASR/NetworkCommissioningDriver.h>
 
 #include "init_Matter.h"
-#if CONFIG_ENABLE_CHIP_SHELL
+#ifdef CONFIG_ENABLE_CHIP_SHELL
 #include "matter_shell.h"
 #endif
 #include <app-common/zap-generated/attributes/Accessors.h>
@@ -82,13 +82,13 @@ CHIP_ERROR AppTask::StartAppTask()
 
 bool IsLightOn()
 {
-    EmberAfStatus status;
+    Protocols::InteractionModel::Status status;
     bool on = true;
     status  = app::Clusters::OnOff::Attributes::OnOff::Get(1, &on);
 
-    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    if (status != Protocols::InteractionModel::Status::Success)
     {
-        ASR_LOG("Error Read OnOff Attribute 0x%02x\n", status);
+        ASR_LOG("Error Read OnOff Attribute 0x%02x\n", to_underlying(status));
     }
 
     return on != false;
@@ -96,14 +96,14 @@ bool IsLightOn()
 
 uint8_t GetLightLevel()
 {
-    EmberAfStatus status;
+    Protocols::InteractionModel::Status status;
     app::DataModel::Nullable<uint8_t> currentLevel;
 
     status = app::Clusters::LevelControl::Attributes::CurrentLevel::Get(1, currentLevel);
 
-    if (status != EMBER_ZCL_STATUS_SUCCESS)
+    if (status != Protocols::InteractionModel::Status::Success)
     {
-        ASR_LOG("Error Read CurrentLevel Attribute 0x%02x\n", status);
+        ASR_LOG("Error Read CurrentLevel Attribute 0x%02x\n", to_underlying(status));
         return -1;
     }
 
@@ -164,7 +164,7 @@ void AppTask::AppTaskMain(void * pvParameter)
 
     /* get led onoff status and level value */
     led_startup_status();
-#if CONFIG_ENABLE_CHIP_SHELL
+#ifdef CONFIG_ENABLE_CHIP_SHELL
     RegisterLightCommands();
 #endif
     /* Delete task */
