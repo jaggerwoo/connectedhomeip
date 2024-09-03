@@ -76,7 +76,7 @@ Davis, CA 95616, USA
     <cluster id="0x0101" name="Door Lock" side="server">
       <mandatoryConform/>
       <features>
-        <feature code="" name="User">
+        <feature code="" name="USR">
           <mandatoryConform>
             <andTerm>
               <condition name="Matter"/>
@@ -89,7 +89,7 @@ Davis, CA 95616, USA
             </andTerm>
           </mandatoryConform>
         </feature>
-        <feature code="" name="RFIDCredential">
+        <feature code="" name="RID">
           <otherwiseConform>
             <provisionalConform/>
             <optionalConform/>

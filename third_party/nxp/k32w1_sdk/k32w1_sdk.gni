@@ -36,6 +36,10 @@ declare_args() {
   use_smu2_dynamic = false
   use_hw_sha256 = false
   use_hw_aes = false
+<<<<<<< HEAD
+=======
+  chip_config_dimmable_led = false
+>>>>>>> v1.3-branch
 }
 
 openthread_nxp_root = "${chip_root}/third_party/openthread/ot-nxp"
@@ -156,6 +160,10 @@ template("k32w1_sdk") {
 
       "${chip_root}/src/platform/nxp/k32w/k32w1",
     ]
+
+    if (chip_config_dimmable_led) {
+      _sdk_include_dirs += [ "${k32w1_sdk_root}/components/pwm" ]
+    }
 
     if (sdk_release == 1) {
       _sdk_include_dirs += [
@@ -419,6 +427,10 @@ template("k32w1_sdk") {
         "${k32w1_sdk_root}/middleware/wireless/bluetooth/application/common/matter/ble_init.c",
       ]
 
+      if (chip_config_dimmable_led) {
+        sources += [ "${k32w1_sdk_root}/devices/K32W1480/drivers/fsl_tpm.c" ]
+      }
+
       if (chip_enable_pw_rpc) {
         sources += [
           "${k32w1_sdk_root}/devices/K32W1480/drivers/fsl_edma.c",
@@ -546,6 +558,10 @@ template("k32w1_sdk") {
       "${k32w1_sdk_root}/rtos/freertos/freertos_kernel/tasks.c",
       "${k32w1_sdk_root}/rtos/freertos/freertos_kernel/timers.c",
     ]
+
+    if (chip_config_dimmable_led) {
+      sources += [ "${k32w1_sdk_root}/components/pwm/fsl_adapter_pwm_tpm.c" ]
+    }
 
     if (chip_with_low_power == 1) {
       sources += []

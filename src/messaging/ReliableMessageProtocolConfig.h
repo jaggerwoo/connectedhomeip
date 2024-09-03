@@ -56,7 +56,7 @@ namespace chip {
  */
 #ifndef CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL
 #if CHIP_ENABLE_OPENTHREAD && !CHIP_DEVICE_LAYER_TARGET_LINUX
-#define CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL (800_ms32)
+#define CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL (2000_ms32)
 #else
 #define CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL (300_ms32)
 #endif
@@ -82,7 +82,7 @@ namespace chip {
  */
 #ifndef CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL
 #if CHIP_ENABLE_OPENTHREAD && !CHIP_DEVICE_LAYER_TARGET_LINUX
-#define CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL (800_ms32)
+#define CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL (2000_ms32)
 #else
 #define CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL (500_ms32)
 #endif
@@ -130,7 +130,10 @@ namespace chip {
 #if CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if !LWIP_PBUF_FROM_CUSTOM_POOLS && PBUF_POOL_SIZE != 0
-#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(PBUF_POOL_SIZE, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
+// Configure the table size to be less than the number of packet buffers to make sure
+// that not all buffers are held by the retransmission entries, in which case the device
+// is unable to receive an ACK and hence becomes unavailable until a message times out.
+#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(PBUF_POOL_SIZE - 1, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
 #else
 #define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
 #endif // !LWIP_PBUF_FROM_CUSTOM_POOLS && PBUF_POOL_SIZE != 0
@@ -138,7 +141,11 @@ namespace chip {
 #else // CHIP_SYSTEM_CONFIG_USE_LWIP
 
 #if CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE != 0
-#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE std::min(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
+// Configure the table size to be less than the number of packet buffers to make sure
+// that not all buffers are held by the retransmission entries, in which case the device
+// is unable to receive an ACK and hence becomes unavailable until a message times out.
+#define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE                                                                                         \
+    std::min(CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE - 1, CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS)
 #else
 #define CHIP_CONFIG_RMP_RETRANS_TABLE_SIZE CHIP_CONFIG_MAX_EXCHANGE_CONTEXTS
 #endif // CHIP_SYSTEM_CONFIG_PACKETBUFFER_POOL_SIZE != 0
@@ -174,7 +181,7 @@ namespace chip {
  */
 #ifndef CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST
 #if CHIP_ENABLE_OPENTHREAD && !CHIP_DEVICE_LAYER_TARGET_LINUX
-#define CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST (500_ms)
+#define CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST (1500_ms)
 #else
 #define CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST (0_ms)
 #endif
@@ -208,6 +215,29 @@ struct ReliableMessageProtocolConfig
         return mIdleRetransTimeout == that.mIdleRetransTimeout && mActiveRetransTimeout == that.mActiveRetransTimeout &&
             mActiveThresholdTime == that.mActiveThresholdTime;
     }
+
+#if CHIP_DEVICE_CONFIG_ENABLE_DYNAMIC_MRP_CONFIG
+    /**
+     * Set the local MRP configuration for the node.
+     *
+     * Passing a "no value" optional resets to the compiled-in settings
+     * (CHIP_CONFIG_MRP_LOCAL_IDLE_RETRY_INTERVAL and
+     * CHIP_CONFIG_MRP_LOCAL_ACTIVE_RETRY_INTERVAL).
+     *
+     * Otherwise the value set via this function is used instead of the
+     * compiled-in settings, but can still be overridden by ICD configuration
+     * and other things that would override the compiled-in settings.
+     *
+     * Changing the value via this function does not affect any existing
+     * sessions or exchanges, but does affect the values we communicate to our
+     * peer during future session establishments.
+     *
+     * @return whether the local MRP configuration actually changed as a result
+     *         of this call.  If it did, callers may need to reset DNS-SD
+     *         advertising to advertise the updated values.
+     */
+    static bool SetLocalMRPConfig(const Optional<ReliableMessageProtocolConfig> & localMRPConfig);
+#endif // CHIP_DEVICE_CONFIG_ENABLE_DYNAMIC_MRP_CONFIG
 };
 
 /// @brief The default MRP config. The value is defined by spec, and shall be same for all implementations,

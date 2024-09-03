@@ -420,8 +420,13 @@ void DiscoveryImplPlatform::HandleDnssdInit(void * context, CHIP_ERROR initError
 
 void DiscoveryImplPlatform::HandleDnssdError(void * context, CHIP_ERROR error)
 {
+    DiscoveryImplPlatform * publisher = static_cast<DiscoveryImplPlatform *>(context);
+
     if (error == CHIP_ERROR_FORCED_RESET)
     {
+        // Restore dnssd state before restart, also needs to call ChipDnssdShutdown()
+        publisher->Shutdown();
+
         DeviceLayer::ChipDeviceEvent event;
         event.Type = DeviceLayer::DeviceEventType::kDnssdRestartNeeded;
         error      = DeviceLayer::PlatformMgr().PostEvent(&event);
@@ -764,15 +769,19 @@ DiscoveryImplPlatform & DiscoveryImplPlatform::GetInstance()
     return sManager.get();
 }
 
-ServiceAdvertiser & chip::Dnssd::ServiceAdvertiser::Instance()
+#if CHIP_DNSSD_DEFAULT_PLATFORM
+
+ServiceAdvertiser & GetDefaultAdvertiser()
 {
     return DiscoveryImplPlatform::GetInstance();
 }
 
-Resolver & chip::Dnssd::Resolver::Instance()
+Resolver & GetDefaultResolver()
 {
     return DiscoveryImplPlatform::GetInstance();
 }
+
+#endif // CHIP_DNSSD_DEFAULT_PLATFORM
 
 } // namespace Dnssd
 } // namespace chip

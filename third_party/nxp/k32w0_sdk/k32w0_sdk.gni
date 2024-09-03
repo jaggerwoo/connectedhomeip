@@ -14,14 +14,15 @@
 
 import("//build_overrides/build.gni")
 import("//build_overrides/chip.gni")
-import("//build_overrides/k32w0_sdk.gni")
 import("//build_overrides/mbedtls.gni")
+import("//build_overrides/nxp_sdk.gni")
 import("//build_overrides/openthread.gni")
 
 import("${build_root}/config/compiler/compiler.gni")
 import("${chip_root}/src/crypto/crypto.gni")
 import("${chip_root}/src/lib/core/core.gni")
-import("${chip_root}/src/platform/nxp/k32w/k32w0/args.gni")
+import("${chip_root}/src/platform/device.gni")
+import("${chip_root}/src/platform/nxp/${nxp_platform}/args.gni")
 
 declare_args() {
   # Location of the k32w0 SDK.
@@ -38,7 +39,6 @@ declare_args() {
   board = "k32w061dk6"
   chip_with_ntag = 1
   chip_with_high_power = 0
-  chip_with_factory_data = 0
   use_fro_32k = 0
   use_custom_factory_provider = 0
   chip_crypto_flavor = "NXP-Ultrafast-P256"
@@ -108,6 +108,16 @@ template("k32w0_sdk") {
           chip_with_factory_data == 1,
       "Please set chip_with_factory_data=1 if using default factory data processor.")
 
+  assert(
+      chip_enable_ota_factory_data_processor == 0 ||
+          chip_enable_ota_firmware_processor == 1,
+      "Please set chip_enable_ota_firmware_processor=1 if using default factory data processor.")
+
+  assert(
+      chip_enable_ota_factory_data_processor == 0 ||
+          chip_with_factory_data == 1,
+      "Please set chip_with_factory_data=1 if using default factory data processor.")
+
   if (build_for_k32w041am == 1 || build_for_k32w041a == 1 ||
       build_for_k32w041 == 1) {
     build_for_k32w061 = 0
@@ -162,6 +172,7 @@ template("k32w0_sdk") {
   print("OTA default factory data processor: ",
         chip_enable_ota_factory_data_processor)
   print("PDM Encryption: ", chip_with_pdm_encryption)
+  print("Antenna Diversity enabled: ", use_antenna_diversity)
 
   if (chip_with_low_power == 1 && chip_logging == true) {
     print(
@@ -375,6 +386,11 @@ template("k32w0_sdk") {
       "NXP_ICD_SUPPORTED_CLIENTS_PER_FABRIC=${nxp_icd_supported_clients_per_fabric}",
     ]
 
+    if (use_antenna_diversity == 1) {
+      print("Check ADO/ADE pin configuration when using Antenna Diversity.")
+      defines += [ "ANTENNA_DIVERSITY_ENABLE" ]
+    }
+
     # If OTA default processors are enabled, then OTA custom entry structure
     # will be saved in external flash: gOTACustomOtaEntryMemory=OTACustomStorage_ExtFlash (1)
     if (chip_enable_ota_firmware_processor == 1) {
@@ -405,6 +421,12 @@ template("k32w0_sdk") {
         "gClkUseFro32K=0",
         "gPWR_CpuClk_48MHz=1",
       ]
+    }
+
+    if (chip_with_pdm_encryption == 1) {
+      defines += [ "PDM_ENCRYPTION=1" ]
+    } else {
+      defines += [ "PDM_ENCRYPTION=0" ]
     }
 
     if (chip_with_pdm_encryption == 1) {

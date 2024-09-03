@@ -146,7 +146,7 @@ public:
      * @param session     Reference to the secure session that will be initialized once session establishment is complete
      * @return CHIP_ERROR The result of session derivation
      */
-    CHIP_ERROR DeriveSecureSession(CryptoContext & session) const override;
+    CHIP_ERROR DeriveSecureSession(CryptoContext & session) override;
 
     //// UnsolicitedMessageHandler Implementation ////
     CHIP_ERROR OnUnsolicitedMessageReceived(const PayloadHeader & payloadHeader, ExchangeDelegate *& newDelegate) override
@@ -272,7 +272,8 @@ private:
                                       const ByteSpan & skInfo, const ByteSpan & nonce);
 
     void OnSuccessStatusReport() override;
-    CHIP_ERROR OnFailureStatusReport(Protocols::SecureChannel::GeneralStatusCode generalCode, uint16_t protocolCode) override;
+    CHIP_ERROR OnFailureStatusReport(Protocols::SecureChannel::GeneralStatusCode generalCode, uint16_t protocolCode,
+                                     Optional<uintptr_t> protocolData) override;
 
     void AbortPendingEstablish(CHIP_ERROR err);
 

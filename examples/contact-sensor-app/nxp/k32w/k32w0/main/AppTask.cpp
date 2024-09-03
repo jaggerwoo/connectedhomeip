@@ -45,7 +45,7 @@
 #include <src/platform/nxp/k32w/common/OTAImageProcessorImpl.h>
 #endif
 
-#include "BLEManagerImpl.h"
+#include <src/platform/nxp/k32w/k32w0/BLEManagerImpl.h>
 
 #include "Keyboard.h"
 #include "LED.h"

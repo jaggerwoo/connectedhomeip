@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <inttypes.h>
 
+#include <app/icd/server/ICDServerConfig.h>
 #include <lib/support/BitFlags.h>
 #include <lib/support/CHIPFaultInjection.h>
 #include <lib/support/CodeUtils.h>
@@ -45,6 +46,8 @@ using namespace chip::System::Clock::Literals;
 
 namespace chip {
 namespace Messaging {
+
+System::Clock::Timeout ReliableMessageMgr::sAdditionalMRPBackoffTime = CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST;
 
 ReliableMessageMgr::RetransTableEntry::RetransTableEntry(ReliableMessageContext * rc) :
     ec(*rc->GetExchangeContext()), nextRetransTime(0), sendCount(0)
@@ -262,7 +265,7 @@ System::Clock::Timestamp ReliableMessageMgr::GetBackoff(System::Clock::Timestamp
     mrpBackoffTime += ICDConfigurationData::GetInstance().GetFastPollingInterval();
 #endif
 
-    mrpBackoffTime += CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST;
+    mrpBackoffTime += sAdditionalMRPBackoffTime;
 
     return mrpBackoffTime;
 }
@@ -450,6 +453,11 @@ CHIP_ERROR ReliableMessageMgr::MapSendError(CHIP_ERROR error, uint16_t exchangeI
     }
 
     return error;
+}
+
+void ReliableMessageMgr::SetAdditionalMRPBackoffTime(const Optional<System::Clock::Timeout> & additionalTime)
+{
+    sAdditionalMRPBackoffTime = additionalTime.ValueOr(CHIP_CONFIG_MRP_RETRY_INTERVAL_SENDER_BOOST);
 }
 
 void ReliableMessageMgr::CalculateNextRetransTime(RetransTableEntry & entry)
