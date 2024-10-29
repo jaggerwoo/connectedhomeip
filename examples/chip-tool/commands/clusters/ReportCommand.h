@@ -114,7 +114,7 @@ public:
         content << "\"cluster_id\":\"" << clusterID.str() << "\",";
         content << "\"attribute_id\":\"" << attributeID.str() << "\",";
         content << "\"data_version\":\"" << dataVersion.str() << "\",";
-        content << "\"value\":\"" << value << "\"}";
+        content << "\"value\":" << value << "}";
         gInteractiveWsInstance.WsSend(content.str().c_str());
     }
 
