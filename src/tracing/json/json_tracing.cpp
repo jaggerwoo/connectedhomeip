@@ -24,12 +24,14 @@
 #include <lib/support/StringBuilder.h>
 #include <lib/support/StringSplitter.h>
 #include <log_json/log_json_build_config.h>
+#include <tracing/metric_event.h>
 #include <transport/TracingStructs.h>
 
 #include <json/json.h>
 
 #include <errno.h>
 
+#include <filesystem>
 #include <sstream>
 #include <string>
 
@@ -295,11 +297,31 @@ void JsonBackend::TraceCounter(const char * label)
     OutputValue(value);
 }
 
-void JsonBackend::TraceMetric(const char * label, int32_t val)
+void JsonBackend::LogMetricEvent(const MetricEvent & event)
 {
     ::Json::Value value;
-    value["label"] = label;
-    value["value"] = val;
+
+    value["label"] = event.key();
+
+    using ValueType = MetricEvent::Value::Type;
+    switch (event.ValueType())
+    {
+    case ValueType::kInt32:
+        value["value"] = event.ValueInt32();
+        break;
+    case ValueType::kUInt32:
+        value["value"] = event.ValueUInt32();
+        break;
+    case ValueType::kChipErrorCode:
+        value["value"] = event.ValueErrorCode();
+        break;
+    case ValueType::kUndefined:
+        value["value"] = ::Json::Value();
+        break;
+    default:
+        value["value"] = "UNKNOWN";
+        break;
+    }
 
     OutputValue(value);
 }
@@ -397,8 +419,9 @@ void JsonBackend::LogNodeDiscovered(NodeDiscoveredInfo & info)
 
         info.result->address.ToString(address_buff);
 
-        result["supports_tcp"] = info.result->supportsTcp;
-        result["address"]      = address_buff;
+        result["supports_tcp_client"] = info.result->supportsTcpClient;
+        result["supports_tcp_server"] = info.result->supportsTcpServer;
+        result["address"]             = address_buff;
 
         result["mrp"]["idle_retransmit_timeout_ms"]   = info.result->mrpRemoteConfig.mIdleRetransTimeout.count();
         result["mrp"]["active_retransmit_timeout_ms"] = info.result->mrpRemoteConfig.mActiveRetransTimeout.count();
@@ -439,8 +462,16 @@ void JsonBackend::CloseFile()
 CHIP_ERROR JsonBackend::OpenFile(const char * path)
 {
     CloseFile();
-    mOutputFile.open(path, std::ios_base::out);
 
+    std::error_code ec;
+    std::filesystem::path filePath(path);
+    // Create directories if they don't exist
+    if (!std::filesystem::create_directories(filePath.remove_filename(), ec))
+    {
+        return CHIP_ERROR_POSIX(ec.value());
+    }
+
+    mOutputFile.open(path, std::ios_base::out);
     if (!mOutputFile)
     {
         return CHIP_ERROR_POSIX(errno);

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: User Label Cluster Tests
+name: Test Access Control Constraints
 
 config:
     nodeId: 0x12344321
@@ -130,7 +130,7 @@ tests:
                   {
                       FabricIndex: 0,
                       Privilege: 3,
-                      AuthMode: 4, # INVALID
+                      AuthMode: AccessControlEntryAuthModeEnum.UnknownEnumValue,
                       Subjects: [],
                       Targets: null,
                   },
@@ -231,7 +231,7 @@ tests:
                   },
                   {
                       FabricIndex: 0,
-                      Privilege: 6, # INVALID
+                      Privilege: AccessControlEntryPrivilegeEnum.UnknownEnumValue,
                       AuthMode: 2, # CASE
                       Subjects: null,
                       Targets: null,

@@ -15,13 +15,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef BRD4325A
-
-#ifdef RAIL_ASSERT_DEBUG_STRING
-#include "rail_assert_error_codes.h"
-#endif
-#endif // BRD4325A
-
 #ifdef PW_RPC_ENABLED
 #include "PigweedLogger.h"
 #endif
@@ -136,20 +129,20 @@ static void PrintLog(const char * msg)
 
 #if SILABS_LOG_OUT_UART
         uartLogWrite(msg, sz);
-#elif PW_RPC_ENABLED
-        PigweedLogger::putString(msg, sz);
 #else
+#if PW_RPC_ENABLED
+        PigweedLogger::putString(msg, sz);
+#endif // PW_RPC_ENABLED
         SEGGER_RTT_WriteNoLock(LOG_RTT_BUFFER_INDEX, msg, sz);
-#endif
+#endif // SILABS_LOG_OUT_UART
 
 #if SILABS_LOG_OUT_RTT || PW_RPC_ENABLED
         const char * newline = "\r\n";
         sz                   = strlen(newline);
 #if PW_RPC_ENABLED
         PigweedLogger::putString(newline, sz);
-#else
-        SEGGER_RTT_WriteNoLock(LOG_RTT_BUFFER_INDEX, newline, sz);
 #endif // PW_RPC_ENABLED
+        SEGGER_RTT_WriteNoLock(LOG_RTT_BUFFER_INDEX, newline, sz);
 #endif
     }
 }

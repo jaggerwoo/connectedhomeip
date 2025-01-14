@@ -20,10 +20,10 @@
 
 #include <app-common/zap-generated/attributes/Accessors.h>
 #include <app-common/zap-generated/cluster-objects.h>
-#include <app/DataModelRevision.h>
+#include <app/AttributeAccessInterfaceRegistry.h>
 #include <app/EventLogging.h>
 #include <app/InteractionModelEngine.h>
-#include <app/SpecificationVersion.h>
+#include <app/SpecificationDefinedRevisions.h>
 #include <app/util/attribute-storage.h>
 #include <lib/core/CHIPConfig.h>
 #include <platform/CHIPDeviceLayer.h>
@@ -314,7 +314,7 @@ CHIP_ERROR BasicAttrAccess::Read(const ConcreteReadAttributePath & aPath, Attrib
 
 CHIP_ERROR BasicAttrAccess::ReadDataModelRevision(AttributeValueEncoder & aEncoder)
 {
-    uint16_t revision = CHIP_DEVICE_DATA_MODEL_REVISION;
+    uint16_t revision = Revision::kDataModelRevision;
     return aEncoder.Encode(revision);
 }
 
@@ -342,7 +342,7 @@ CHIP_ERROR BasicAttrAccess::Write(const ConcreteDataAttributePath & aPath, Attri
 
     switch (aPath.mAttributeId)
     {
-    case Location::Id: {
+    case Attributes::Location::Id: {
         CHIP_ERROR err = WriteLocation(aDecoder);
 
         return err;
@@ -399,7 +399,7 @@ CHIP_ERROR BasicAttrAccess::ReadProductAppearance(AttributeValueEncoder & aEncod
 
 CHIP_ERROR BasicAttrAccess::ReadSpecificationVersion(AttributeValueEncoder & aEncoder)
 {
-    uint32_t specification_version = CHIP_DEVICE_SPECIFICATION_VERSION;
+    uint32_t specification_version = Revision::kSpecificationVersion;
     return aEncoder.Encode(specification_version);
 }
 
@@ -476,6 +476,6 @@ bool IsLocalConfigDisabled()
 
 void MatterBasicInformationPluginServerInitCallback()
 {
-    registerAttributeAccessOverride(&gAttrAccess);
+    AttributeAccessInterfaceRegistry::Instance().Register(&gAttrAccess);
     PlatformMgr().SetDelegate(&gPlatformMgrDelegate);
 }

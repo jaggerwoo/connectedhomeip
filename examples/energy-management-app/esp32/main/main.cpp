@@ -16,12 +16,22 @@
  */
 
 #include "DeviceCallbacks.h"
+
+#if CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
 #include <EnergyEvseMain.h>
+#endif // CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
+
+#if CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE
+#include <WaterHeaterMain.h>
+#endif // CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
 
 #include "esp_log.h"
 #include <common/CHIPDeviceManager.h>
 #include <common/Esp32AppServer.h>
 #include <common/Esp32ThreadInit.h>
+#if CONFIG_ENABLE_SNTP_TIME_SYNC
+#include <time/TimeSync.h>
+#endif
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include "spi_flash_mmap.h"
 #else
@@ -69,6 +79,7 @@ using namespace chip::app::Clusters;
 using namespace ::chip::Credentials;
 using namespace ::chip::DeviceManager;
 using namespace ::chip::DeviceLayer;
+using namespace chip::app::Clusters::WaterHeaterManagement;
 
 #if CONFIG_ENABLE_ESP_INSIGHTS_TRACE
 extern const char insights_auth_key_start[] asm("_binary_insights_auth_key_txt_start");
@@ -108,16 +119,66 @@ chip::Credentials::DeviceAttestationCredentialsProvider * get_dac_provider(void)
 
 } // namespace
 
+namespace chip {
+namespace app {
+namespace Clusters {
+namespace DeviceEnergyManagement {
+
+// Keep track of the parsed featureMap option
+#if defined(CONFIG_DEM_SUPPORT_POWER_FORECAST_REPORTING) && defined(CONFIG_DEM_SUPPORT_STATE_FORECAST_REPORTING)
+#error Cannot define CONFIG_DEM_SUPPORT_POWER_FORECAST_REPORTING and CONFIG_DEM_SUPPORT_STATE_FORECAST_REPORTING
+#endif
+
+#ifdef CONFIG_DEM_SUPPORT_POWER_FORECAST_REPORTING
+static chip::BitMask<Feature> sFeatureMap(Feature::kPowerAdjustment, Feature::kPowerForecastReporting,
+                                          Feature::kStartTimeAdjustment, Feature::kPausable, Feature::kForecastAdjustment,
+                                          Feature::kConstraintBasedAdjustment);
+#elif CONFIG_DEM_SUPPORT_STATE_FORECAST_REPORTING
+static chip::BitMask<Feature> sFeatureMap(Feature::kPowerAdjustment, Feature::kStateForecastReporting,
+                                          Feature::kStartTimeAdjustment, Feature::kPausable, Feature::kForecastAdjustment,
+                                          Feature::kConstraintBasedAdjustment);
+#else
+static chip::BitMask<Feature> sFeatureMap(Feature::kPowerAdjustment);
+#endif
+
+chip::BitMask<Feature> GetFeatureMapFromCmdLine()
+{
+    return sFeatureMap;
+}
+
+} // namespace DeviceEnergyManagement
+} // namespace Clusters
+} // namespace app
+} // namespace chip
+
+// Check we are not trying to build in both app types simultaneously
+#if defined(CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE) && defined(CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE)
+#error Cannot define CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE and CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE
+#endif
+
 void ApplicationInit()
 {
     ESP_LOGD(TAG, "Energy Management App: ApplicationInit()");
+#if CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
     EvseApplicationInit();
+#endif // CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
+
+#if CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE
+    FullWhmApplicationInit();
+#endif // CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE
 }
 
 void ApplicationShutdown()
 {
     ESP_LOGD(TAG, "Energy Management App: ApplicationShutdown()");
+
+#if CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
     EvseApplicationShutdown();
+#endif // CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE
+
+#if CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE
+    FullWhmApplicationShutdown();
+#endif // CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE
 }
 
 static void InitServer(intptr_t context)
@@ -126,7 +187,8 @@ static void InitServer(intptr_t context)
     PrintOnboardingCodes(chip::RendezvousInformationFlags(CONFIG_RENDEZVOUS_MODE));
 
     DeviceCallbacksDelegate::Instance().SetAppDelegate(&sAppDeviceCallbacksDelegate);
-    Esp32AppServer::Init(); // Init ZCL Data Model and CHIP App Server AND Initialize device attestation config
+    Esp32AppServer::Init(); // Init ZCL Data Model and CHIP App Server AND
+                            // Initialize device attestation config
 #if CONFIG_ENABLE_ESP_INSIGHTS_TRACE
     esp_insights_config_t config = {
         .log_type = ESP_DIAG_LOG_TYPE_ERROR | ESP_DIAG_LOG_TYPE_WARNING | ESP_DIAG_LOG_TYPE_EVENT,
@@ -144,8 +206,15 @@ static void InitServer(intptr_t context)
     Tracing::Register(backend);
 #endif
 
-    // Application code should always be initialised after the initialisation of server.
+    // Application code should always be initialised after the initialisation of
+    // server.
     ApplicationInit();
+
+#if CONFIG_ENABLE_SNTP_TIME_SYNC
+    const char kNtpServerUrl[]             = "pool.ntp.org";
+    const uint16_t kSyncNtpTimeIntervalDay = 1;
+    chip::Esp32TimeSync::Init(kNtpServerUrl, kSyncNtpTimeIntervalDay);
+#endif
 }
 
 extern "C" void app_main()
@@ -168,7 +237,15 @@ extern "C" void app_main()
 #endif
 
     ESP_LOGI(TAG, "==================================================");
-    ESP_LOGI(TAG, "chip-esp32-energy-management-example starting");
+#if defined(CONFIG_ENABLE_EXAMPLE_EVSE_DEVICE)
+    ESP_LOGI(TAG, "chip-esp32-energy-management-example evse starting. featureMap 0x%08lx",
+             DeviceEnergyManagement::sFeatureMap.Raw());
+#elif defined(CONFIG_ENABLE_EXAMPLE_WATER_HEATER_DEVICE)
+    ESP_LOGI(TAG, "chip-esp32-energy-management-example water-heater starting. featureMap 0x%08lx",
+             DeviceEnergyManagement::sFeatureMap.Raw());
+#else
+    ESP_LOGI(TAG, "chip-esp32-energy-management-example starting. featureMap 0x%08lx", DeviceEnergyManagement::sFeatureMap.Raw());
+#endif
     ESP_LOGI(TAG, "==================================================");
 
 #if CONFIG_ENABLE_CHIP_SHELL

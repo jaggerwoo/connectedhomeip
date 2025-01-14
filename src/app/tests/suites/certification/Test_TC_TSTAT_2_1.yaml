@@ -243,8 +243,8 @@ tests:
       response:
           constraints:
               type: int8s
-              minValue: -25
-              maxValue: 25
+              minValue: -127
+              maxValue: 127
 
     - label: "Step 13a: TH reads attribute OccupiedCoolingSetpoint from the DUT"
       PICS: TSTAT.S.F01 && TSTAT.S.A0017 && TSTAT.S.A0018
@@ -468,8 +468,12 @@ tests:
       response:
           constraints:
               type: enum8
-              minValue: 0
-              maxValue: 9
+              anyOf:
+                  [
+                      ThermostatRunningModeEnum.Off(0),
+                      ThermostatRunningModeEnum.Cool(3),
+                      ThermostatRunningModeEnum.Heat(4),
+                  ]
 
     - label: "Step 27: TH reads the StartOfWeek attribute from the DUT"
       PICS: TSTAT.S.F03

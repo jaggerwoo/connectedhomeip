@@ -16,16 +16,9 @@
  *    limitations under the License.
  */
 
-/**
- *    @file
- *      This file defines objects for a CHIP IM Invoke Command Sender
- *
- */
-
-#include "../../examples/chip-tool/commands/interactive/InteractiveCommands.h"
 #include "CommandSender.h"
-#include "InteractionModelEngine.h"
 #include "StatusResponse.h"
+#include <app/InteractionModelTimeout.h>
 #include <app/TimedRequest.h>
 #include <platform/LockTracker.h>
 #include <protocols/Protocols.h>
@@ -41,7 +34,7 @@ namespace {
 // Gets the CommandRef if available. Error returned if we expected CommandRef and it wasn't
 // provided in the response.
 template <typename ParserT>
-CHIP_ERROR GetRef(ParserT aParser, Optional<uint16_t> & aRef, bool commandRefExpected)
+CHIP_ERROR GetRef(ParserT aParser, Optional<uint16_t> & aRef, bool commandRefRequired)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
     uint16_t ref;
@@ -50,7 +43,7 @@ CHIP_ERROR GetRef(ParserT aParser, Optional<uint16_t> & aRef, bool commandRefExp
     VerifyOrReturnError(err == CHIP_NO_ERROR || err == CHIP_END_OF_TLV, err);
     if (err == CHIP_END_OF_TLV)
     {
-        if (commandRefExpected)
+        if (commandRefRequired)
         {
             return CHIP_ERROR_INVALID_ARGUMENT;
         }
@@ -65,18 +58,19 @@ CHIP_ERROR GetRef(ParserT aParser, Optional<uint16_t> & aRef, bool commandRefExp
 } // namespace
 
 CommandSender::CommandSender(Callback * apCallback, Messaging::ExchangeManager * apExchangeMgr, bool aIsTimedRequest,
-                             bool aSuppressResponse) :
+                             bool aSuppressResponse, bool aAllowLargePayload) :
     mExchangeCtx(*this),
-    mCallbackHandle(apCallback), mpExchangeMgr(apExchangeMgr), mSuppressResponse(aSuppressResponse), mTimedRequest(aIsTimedRequest)
+    mCallbackHandle(apCallback), mpExchangeMgr(apExchangeMgr), mSuppressResponse(aSuppressResponse), mTimedRequest(aIsTimedRequest),
+    mAllowLargePayload(aAllowLargePayload)
 {
     assertChipStackLockedByCurrentThread();
 }
 
 CommandSender::CommandSender(ExtendableCallback * apExtendableCallback, Messaging::ExchangeManager * apExchangeMgr,
-                             bool aIsTimedRequest, bool aSuppressResponse) :
+                             bool aIsTimedRequest, bool aSuppressResponse, bool aAllowLargePayload) :
     mExchangeCtx(*this),
     mCallbackHandle(apExtendableCallback), mpExchangeMgr(apExchangeMgr), mSuppressResponse(aSuppressResponse),
-    mTimedRequest(aIsTimedRequest), mUseExtendableCallback(true)
+    mTimedRequest(aIsTimedRequest), mUseExtendableCallback(true), mAllowLargePayload(aAllowLargePayload)
 {
     assertChipStackLockedByCurrentThread();
 #if CHIP_CONFIG_COMMAND_SENDER_BUILTIN_SUPPORT_FOR_BATCHED_COMMANDS
@@ -95,7 +89,15 @@ CHIP_ERROR CommandSender::AllocateBuffer()
     {
         mCommandMessageWriter.Reset();
 
-        System::PacketBufferHandle commandPacket = System::PacketBufferHandle::New(chip::app::kMaxSecureSduLengthBytes);
+        System::PacketBufferHandle commandPacket;
+        if (mAllowLargePayload)
+        {
+            commandPacket = System::PacketBufferHandle::New(kMaxLargeSecureSduLengthBytes);
+        }
+        else
+        {
+            commandPacket = System::PacketBufferHandle::New(kMaxSecureSduLengthBytes);
+        }
         VerifyOrReturnError(!commandPacket.IsNull(), CHIP_ERROR_NO_MEMORY);
 
         mCommandMessageWriter.Init(std::move(commandPacket));
@@ -149,6 +151,12 @@ CHIP_ERROR CommandSender::TestOnlyCommandSenderTimedRequestFlagWithNoTimedInvoke
 
 CHIP_ERROR CommandSender::SendCommandRequest(const SessionHandle & session, Optional<System::Clock::Timeout> timeout)
 {
+    // If the command is expected to be large, ensure that the underlying
+    // session supports it.
+    if (mAllowLargePayload)
+    {
+        VerifyOrReturnError(session->AllowsLargePayload(), CHIP_ERROR_INCORRECT_STATE);
+    }
 
     if (mTimedRequest != mTimedInvokeTimeoutMs.HasValue())
     {
@@ -335,10 +343,7 @@ void CommandSender::OnResponseTimeout(Messaging::ExchangeContext * apExchangeCon
     ChipLogProgress(DataManagement, "Time out! failed to receive invoke command response from Exchange: " ChipLogFormatExchange,
                     ChipLogValueExchange(apExchangeContext));
 
-    // TODO(#30453) When timeout occurs for batch commands what should be done? Should all individual
-    // commands have a path specific error of timeout, or do we give or NoCommandResponse.
     OnErrorCallback(CHIP_ERROR_TIMEOUT);
-
     Close();
 }
 
@@ -377,7 +382,7 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
         bool hasDataResponse = false;
         TLV::TLVReader commandDataReader;
         Optional<uint16_t> commandRef;
-        bool commandRefExpected = mpPendingResponseTracker && (mpPendingResponseTracker->Count() > 1);
+        bool commandRefRequired = (mFinishedCommandCount > 1);
 
         CommandStatusIB::Parser commandStatus;
         err = aInvokeResponse.GetStatus(&commandStatus);
@@ -392,7 +397,7 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
             StatusIB::Parser status;
             commandStatus.GetErrorStatus(&status);
             ReturnErrorOnFailure(status.DecodeStatusIB(statusIB));
-            ReturnErrorOnFailure(GetRef(commandStatus, commandRef, commandRefExpected));
+            ReturnErrorOnFailure(GetRef(commandStatus, commandRef, commandRefRequired));
         }
         else if (CHIP_END_OF_TLV == err)
         {
@@ -404,7 +409,7 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
             ReturnErrorOnFailure(commandPath.GetClusterId(&clusterId));
             ReturnErrorOnFailure(commandPath.GetCommandId(&commandId));
             commandData.GetFields(&commandDataReader);
-            ReturnErrorOnFailure(GetRef(commandData, commandRef, commandRefExpected));
+            ReturnErrorOnFailure(GetRef(commandData, commandRef, commandRefRequired));
             err             = CHIP_NO_ERROR;
             hasDataResponse = true;
         }
@@ -454,7 +459,7 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
                 // 2. The current InvokeResponse is for a request we never sent (based on its commandRef).
                 // Used when logging errors related to server violating spec.
                 [[maybe_unused]] ScopedNodeId remoteScopedNode;
-                if (mExchangeCtx.Get()->HasSessionHandle())
+                if (mExchangeCtx.Get() && mExchangeCtx.Get()->HasSessionHandle())
                 {
                     remoteScopedNode = mExchangeCtx.Get()->GetSessionHandle()->GetPeer();
                 }
@@ -463,6 +468,15 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
                              ChipLogValueScopedNodeId(remoteScopedNode), commandRef.Value());
                 return err;
             }
+        }
+
+        if (!commandRef.HasValue() && !commandRefRequired && mpPendingResponseTracker != nullptr &&
+            mpPendingResponseTracker->Count() == 1)
+        {
+            // We have sent out a single invoke request. As per spec, server in this case doesn't need to provide the CommandRef
+            // in the response. This is allowed to support communicating with a legacy server. In this case we assume the response
+            // is associated with the only command we sent out.
+            commandRef = mpPendingResponseTracker->PopPendingResponse();
         }
 
         // When using ExtendableCallbacks, we are adhering to a different API contract where path
@@ -557,11 +571,7 @@ CHIP_ERROR CommandSender::PrepareCommand(const CommandPathParams & aCommandPathP
     bool canAddAnotherCommand = (mState == State::AddedCommand && mBatchCommandsEnabled && mUseExtendableCallback);
     VerifyOrReturnError(mState == State::Idle || canAddAnotherCommand, CHIP_ERROR_INCORRECT_STATE);
 
-    if (mpPendingResponseTracker != nullptr)
-    {
-        size_t pendingCount = mpPendingResponseTracker->Count();
-        VerifyOrReturnError(pendingCount < mRemoteMaxPathsPerInvoke, CHIP_ERROR_MAXIMUM_PATHS_PER_INVOKE_EXCEEDED);
-    }
+    VerifyOrReturnError(mFinishedCommandCount < mRemoteMaxPathsPerInvoke, CHIP_ERROR_MAXIMUM_PATHS_PER_INVOKE_EXCEEDED);
 
     if (mBatchCommandsEnabled)
     {
@@ -601,6 +611,23 @@ CHIP_ERROR CommandSender::FinishCommand(FinishCommandParameters & aFinishCommand
     return FinishCommandInternal(aFinishCommandParams);
 }
 
+CHIP_ERROR CommandSender::AddRequestData(const CommandPathParams & aCommandPath, const DataModel::EncodableToTLV & aEncodable,
+                                         AddRequestDataParameters & aAddRequestDataParams)
+{
+    ReturnErrorOnFailure(AllocateBuffer());
+
+    RollbackInvokeRequest rollback(*this);
+    PrepareCommandParameters prepareCommandParams(aAddRequestDataParams);
+    ReturnErrorOnFailure(PrepareCommand(aCommandPath, prepareCommandParams));
+    TLV::TLVWriter * writer = GetCommandDataIBTLVWriter();
+    VerifyOrReturnError(writer != nullptr, CHIP_ERROR_INCORRECT_STATE);
+    ReturnErrorOnFailure(aEncodable.EncodeTo(*writer, TLV::ContextTag(CommandDataIB::Tag::kFields)));
+    FinishCommandParameters finishCommandParams(aAddRequestDataParams);
+    ReturnErrorOnFailure(FinishCommand(finishCommandParams));
+    rollback.DisableAutomaticRollback();
+    return CHIP_NO_ERROR;
+}
+
 CHIP_ERROR CommandSender::FinishCommandInternal(FinishCommandParameters & aFinishCommandParams)
 {
     CHIP_ERROR err = CHIP_NO_ERROR;
@@ -622,6 +649,7 @@ CHIP_ERROR CommandSender::FinishCommandInternal(FinishCommandParameters & aFinis
     ReturnErrorOnFailure(commandData.EndOfCommandDataIB());
 
     MoveToState(State::AddedCommand);
+    mFinishedCommandCount++;
 
     if (mpPendingResponseTracker && aFinishCommandParams.commandRef.HasValue())
     {
@@ -706,6 +734,35 @@ void CommandSender::MoveToState(const State aTargetState)
 {
     mState = aTargetState;
     ChipLogDetail(DataManagement, "ICR moving to [%10.10s]", GetStateStr());
+}
+
+CommandSender::RollbackInvokeRequest::RollbackInvokeRequest(CommandSender & aCommandSender) : mCommandSender(aCommandSender)
+{
+    VerifyOrReturn(mCommandSender.mBufferAllocated);
+    VerifyOrReturn(mCommandSender.mState == State::Idle || mCommandSender.mState == State::AddedCommand);
+    VerifyOrReturn(mCommandSender.mInvokeRequestBuilder.GetInvokeRequests().GetError() == CHIP_NO_ERROR);
+    VerifyOrReturn(mCommandSender.mInvokeRequestBuilder.GetError() == CHIP_NO_ERROR);
+    mCommandSender.mInvokeRequestBuilder.Checkpoint(mBackupWriter);
+    mBackupState          = mCommandSender.mState;
+    mRollbackInDestructor = true;
+}
+
+CommandSender::RollbackInvokeRequest::~RollbackInvokeRequest()
+{
+    VerifyOrReturn(mRollbackInDestructor);
+    VerifyOrReturn(mCommandSender.mState == State::AddingCommand);
+    ChipLogDetail(DataManagement, "Rolling back response");
+    // TODO(#30453): Rollback of mInvokeRequestBuilder should handle resetting
+    // InvokeRequests.
+    mCommandSender.mInvokeRequestBuilder.GetInvokeRequests().ResetError();
+    mCommandSender.mInvokeRequestBuilder.Rollback(mBackupWriter);
+    mCommandSender.MoveToState(mBackupState);
+    mRollbackInDestructor = false;
+}
+
+void CommandSender::RollbackInvokeRequest::DisableAutomaticRollback()
+{
+    mRollbackInDestructor = false;
 }
 
 } // namespace app
