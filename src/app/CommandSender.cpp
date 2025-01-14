@@ -445,7 +445,7 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
             // content << "\"attribute_id\":\"" << attributeID.str() << "\",";
             // content << "\"data_version\":\"" << dataVersion.str() << "\",";
             // content << "\"value\":" << value << "}";
-            gInteractiveWsInstance.WsSend("111xxxx111");
+            // gInteractiveWsInstance.WsSend("111xxxx111");
         }
         ReturnErrorOnFailure(err);
 
