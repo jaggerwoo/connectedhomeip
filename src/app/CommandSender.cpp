@@ -22,6 +22,7 @@
  *
  */
 
+#include "../../examples/chip-tool/commands/interactive/InteractiveCommands.h"
 #include "CommandSender.h"
 #include "InteractionModelEngine.h"
 #include "StatusResponse.h"
@@ -29,6 +30,9 @@
 #include <platform/LockTracker.h>
 #include <protocols/Protocols.h>
 #include <protocols/interaction_model/Constants.h>
+#include <lib/support/jsontlv/TlvJson.h>
+#include <lib/core/TLVReader.h>
+// #include <examples/chip-tool/commands/interactive/InteractiveCommands.h>
 
 namespace chip {
 namespace app {
@@ -426,6 +430,17 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
                                 endpointId, ChipLogValueMEI(clusterId), ChipLogValueMEI(commandId),
                                 to_underlying(statusIB.mStatus));
             }
+            
+            // chip-tool response for no data response
+            // std::stringstream content;
+            // content << "{\"queue\":\"chip_tool_rsp\",";
+            // content << "\"node_id\":\"" << nodeID.str() << "\",";
+            // content << "\"endpoint_id\":\"" << endpointID.str() << "\",";
+            // content << "\"cluster_id\":\"" << clusterID.str() << "\",";
+            // content << "\"attribute_id\":\"" << attributeID.str() << "\",";
+            // content << "\"data_version\":\"" << dataVersion.str() << "\",";
+            // content << "\"value\":" << value << "}";
+            gInteractiveWsInstance.WsSend("111xxxx111");
         }
         ReturnErrorOnFailure(err);
 
@@ -455,11 +470,56 @@ CHIP_ERROR CommandSender::ProcessInvokeResponseIB(InvokeResponseIB::Parser & aIn
         // of this issue please see https://github.com/project-chip/connectedhomeip/issues/30991
         if (statusIB.IsSuccess() || mUseExtendableCallback)
         {
+            ChipLogDetail(DataManagement, "33333chip-tool-no-data-response--11---%s", "Sss");
+            chip::TLV::TLVReader CopyCommandDataReader;
+            CopyCommandDataReader = commandDataReader;
+
             const ConcreteCommandPath concretePath = ConcreteCommandPath(endpointId, clusterId, commandId);
             ResponseData responseData              = { concretePath, statusIB };
             responseData.data                      = hasDataResponse ? &commandDataReader : nullptr;
             responseData.commandRef                = commandRef;
             OnResponseCallback(responseData);
+            
+            [[maybe_unused]] ScopedNodeId remoteScopedNode;
+            if (mExchangeCtx.Get()->HasSessionHandle())
+            {
+                remoteScopedNode = mExchangeCtx.Get()->GetSessionHandle()->GetPeer();
+                ChipLogProgress(DataManagement, "11111111chip-tool-no-data-response----- " ChipLogFormatScopedNodeId ", ", ChipLogValueScopedNodeId(remoteScopedNode));
+
+                Json::Value value;
+                std::stringstream endpointID;
+                char endpointBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+                snprintf(endpointBuf, sizeof(endpointBuf), "%u", responseData.path.mEndpointId);
+                endpointID << endpointBuf;
+
+                std::stringstream clusterID;
+                char clusterBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+                snprintf(clusterBuf, sizeof(clusterBuf), ChipLogFormatMEI, ChipLogValueMEI(responseData.path.mClusterId));
+                clusterID << clusterBuf;
+
+                std::stringstream attributeID;
+                char attributeBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+                snprintf(attributeBuf, sizeof(attributeBuf), ChipLogFormatMEI, ChipLogValueMEI(responseData.path.mCommandId));
+                attributeID << attributeBuf;
+                value["endpoint_id"] = responseData.path.mEndpointId;
+                value["attribute_id"] = responseData.path.mCommandId;
+                value["cluster_id"] = responseData.path.mClusterId;
+
+                std::stringstream nodeID;
+                char nodeIDBuf[CHIP_CONFIG_LOG_MESSAGE_MAX_SIZE];
+                snprintf(nodeIDBuf, sizeof(nodeIDBuf), "0x%" PRIx64, (remoteScopedNode).GetNodeId());
+                nodeID << nodeIDBuf;
+                value["node_id"] = nodeID.str().c_str();
+                if (hasDataResponse){
+                    chip::TLV::TLVReader reader;
+                    reader.Init(CopyCommandDataReader);
+                    chip::TlvToJson(reader, value);
+                } else {
+                    value["status"] = to_underlying(statusIB.mStatus);
+                }
+                auto valueStr = chip::JsonToString(value);
+                ChipLogDetail(DataManagement, "eeeeeeeeeeeeeeeeeeeeeeeeeeeee---%s", valueStr.c_str());
+            }
         }
         else
         {
