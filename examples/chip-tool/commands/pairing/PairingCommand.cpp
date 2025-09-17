@@ -72,8 +72,10 @@ CHIP_ERROR PairingCommand::RunInternal(NodeId remoteId)
         err = PaseWithCode(remoteId);
         break;
     case PairingMode::Ble:
+    {
         err = Pair(remoteId, PeerAddress::BLE());
         break;
+    }
     case PairingMode::OnNetwork:
         err = PairWithMdns(remoteId);
         break;
@@ -364,9 +366,17 @@ void PairingCommand::OnStatusUpdate(DevicePairingDelegate::Status status)
     switch (status)
     {
     case DevicePairingDelegate::Status::SecurePairingSuccess:
+    {
+        // 333
+        std::stringstream content;
+        content << "{\"queue\":\"devices\",";
+        // content << "\"node_id\":\"" << nodeId << "\",";
+        content << "\"op_state\":\"in_progress_2\"}";
+        gInteractiveWsInstance.WsSend(content.str().c_str());
         ChipLogProgress(chipTool, "Secure Pairing Success");
         ChipLogProgress(chipTool, "CASE establishment successful");
         break;
+    }
     case DevicePairingDelegate::Status::SecurePairingFailed:
         ChipLogError(chipTool, "Secure Pairing Failed");
         SetCommandExitStatus(CHIP_ERROR_INCORRECT_STATE);
@@ -380,6 +390,12 @@ void PairingCommand::OnPairingComplete(CHIP_ERROR err)
     {
         ChipLogProgress(chipTool, "Pairing Success");
         ChipLogProgress(chipTool, "PASE establishment successful");
+        // 111
+        // std::stringstream content;
+        // content << "{\"queue\":\"devices\",";
+        // content << "\"op_state\":\"in_progress\"}";
+        // gInteractiveWsInstance.WsSend(content.str().c_str());
+
         if (mPairingMode == PairingMode::CodePaseOnly || mPaseOnly.ValueOr(false))
         {
             SetCommandExitStatus(err);
@@ -468,6 +484,12 @@ void PairingCommand::OnReadCommissioningInfo(const Controller::ReadCommissioning
         ChipLogProgress(AppServer, "OnReadCommissioningInfo - LIT UserActiveModeTriggerInstruction=%s",
                         userActiveModeTriggerInstruction.c_str());
     }
+    // 222
+    std::stringstream content;
+    content << "{\"queue\":\"devices\",";
+    // content << "\"node_id\":\"" << nodeId << "\",";
+    content << "\"op_state\":\"in_progress_1\"}";
+    gInteractiveWsInstance.WsSend(content.str().c_str());
     ChipLogProgress(AppServer, "OnReadCommissioningInfo ICD - IdleModeDuration=%u activeModeDuration=%u activeModeThreshold=%u",
                     info.icd.idleModeDuration, info.icd.activeModeDuration, info.icd.activeModeThreshold);
 }

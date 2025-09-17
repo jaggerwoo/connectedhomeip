@@ -3,10 +3,10 @@ dev_host=root@192.168.0.181
 target_root=/root/woo_github/connectedhomeip
 
 # 修改的文件
-# scp ./examples/chip-tool/commands/interactive/InteractiveCommands.cpp $dev_host:$target_root/examples/chip-tool/commands/interactive/InteractiveCommands.cpp
-# scp ./examples/chip-tool/commands/interactive/InteractiveCommands.h $dev_host:$target_root/examples/chip-tool/commands/interactive/InteractiveCommands.h
-# scp ./examples/chip-tool/commands/pairing/PairingCommand.cpp $dev_host:$target_root/examples/chip-tool/commands/pairing/PairingCommand.cpp
-# scp ./examples/chip-tool/commands/pairing/PairingCommand.h $dev_host:$target_root/examples/chip-tool/commands/pairing/PairingCommand.h
+scp ./examples/chip-tool/commands/interactive/InteractiveCommands.cpp $dev_host:$target_root/examples/chip-tool/commands/interactive/InteractiveCommands.cpp
+scp ./examples/chip-tool/commands/interactive/InteractiveCommands.h $dev_host:$target_root/examples/chip-tool/commands/interactive/InteractiveCommands.h
+scp ./examples/chip-tool/commands/pairing/PairingCommand.cpp $dev_host:$target_root/examples/chip-tool/commands/pairing/PairingCommand.cpp
+scp ./examples/chip-tool/commands/pairing/PairingCommand.h $dev_host:$target_root/examples/chip-tool/commands/pairing/PairingCommand.h
 # scp ./examples/chip-tool/commands/clusters/ReportCommand.h $dev_host:$target_root/examples/chip-tool/commands/clusters/ReportCommand.h
 # scp ./src/app/ReadClient.cpp $dev_host:$target_root/src/app/ReadClient.cpp
 # scp ./src/app/ReadClient.h $dev_host:$target_root/src/app/ReadClient.h
