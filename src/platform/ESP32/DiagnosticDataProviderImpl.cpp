@@ -156,20 +156,7 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetUpTime(uint64_t & upTime)
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetTotalOperationalHours(uint32_t & totalOperationalHours)
 {
-    uint64_t upTime = 0;
-
-    if (GetUpTime(upTime) == CHIP_NO_ERROR)
-    {
-        uint32_t totalHours = 0;
-        if (ConfigurationMgr().GetTotalOperationalHours(totalHours) == CHIP_NO_ERROR)
-        {
-            VerifyOrReturnError(upTime / 3600 <= UINT32_MAX, CHIP_ERROR_INVALID_INTEGER_VALUE);
-            totalOperationalHours = totalHours + static_cast<uint32_t>(upTime / 3600);
-            return CHIP_NO_ERROR;
-        }
-    }
-
-    return CHIP_ERROR_INVALID_TIME;
+    return ConfigurationMgr().GetTotalOperationalHours(totalOperationalHours);
 }
 
 CHIP_ERROR DiagnosticDataProviderImpl::GetBootReason(BootReasonType & bootReason)
@@ -265,7 +252,7 @@ CHIP_ERROR DiagnosticDataProviderImpl::GetNetworkInterfaces(NetworkInterface ** 
             }
             else
             {
-                ipv6_addr_count = static_cast<uint8_t>(min(addr_count, static_cast<int>(kMaxIPv6AddrCount)));
+                ipv6_addr_count = static_cast<uint8_t>(std::min(addr_count, static_cast<int>(kMaxIPv6AddrCount)));
             }
             for (uint8_t idx = 0; idx < ipv6_addr_count; ++idx)
             {
@@ -290,6 +277,56 @@ void DiagnosticDataProviderImpl::ReleaseNetworkInterfaces(NetworkInterface * net
         netifp                 = netifp->Next;
         delete del;
     }
+}
+
+CHIP_ERROR DiagnosticDataProviderImpl::GetThreadMetrics(ThreadMetrics ** threadMetricsOut)
+{
+#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
+    ThreadMetrics * head = nullptr;
+    uint32_t arraySize   = uxTaskGetNumberOfTasks();
+
+    Platform::ScopedMemoryBuffer<TaskStatus_t> taskStatusArray;
+    VerifyOrReturnError(taskStatusArray.Calloc(arraySize), CHIP_ERROR_NO_MEMORY);
+
+    uint32_t dummyRunTimeCounter;
+    arraySize = uxTaskGetSystemState(taskStatusArray.Get(), arraySize, &dummyRunTimeCounter);
+
+    for (uint32_t i = 0; i < arraySize; i++)
+    {
+        auto thread = static_cast<ThreadMetrics *>(Platform::MemoryCalloc(1, sizeof(ThreadMetrics)));
+        VerifyOrReturnError(thread, CHIP_ERROR_NO_MEMORY, ReleaseThreadMetrics(head));
+
+        Platform::CopyString(thread->NameBuf, taskStatusArray[i].pcTaskName);
+        thread->name.Emplace(CharSpan::fromCharString(thread->NameBuf));
+        thread->id = taskStatusArray[i].xTaskNumber;
+        thread->stackFreeMinimum.Emplace(taskStatusArray[i].usStackHighWaterMark);
+
+        // Todo: Calculate stack size and current free stack value and assign.
+        thread->stackFreeCurrent.ClearValue();
+        thread->stackSize.ClearValue();
+
+        thread->Next = head;
+        head         = thread;
+    }
+
+    *threadMetricsOut = head;
+
+    return CHIP_NO_ERROR;
+#else
+    return CHIP_ERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+void DiagnosticDataProviderImpl::ReleaseThreadMetrics(ThreadMetrics * threadMetrics)
+{
+#ifdef CONFIG_FREERTOS_USE_TRACE_FACILITY
+    while (threadMetrics)
+    {
+        ThreadMetrics * del = threadMetrics;
+        threadMetrics       = threadMetrics->Next;
+        Platform::MemoryFree(del);
+    }
+#endif
 }
 
 #if CHIP_DEVICE_CONFIG_ENABLE_WIFI

@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 2020 Project CHIP Authors
+ *   Copyright (c) 2020-2024 Project CHIP Authors
  *   All rights reserved.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -43,6 +43,7 @@ enum class PairingMode
     AlreadyDiscoveredByIndex,
     AlreadyDiscoveredByIndexWithCode,
     OnNetwork,
+    Nfc,
 };
 
 enum class PairingNetworkType
@@ -107,6 +108,10 @@ public:
             break;
         case PairingMode::Code:
             AddArgument("skip-commissioning-complete", 0, 1, &mSkipCommissioningComplete);
+            AddArgument("dcl-hostname", &mDCLHostName,
+                        "Hostname of the DCL server to fetch information from. Defaults to 'on.dcl.csa-iot.org'.");
+            AddArgument("dcl-port", 0, UINT16_MAX, &mDCLPort, "Port number for connecting to the DCL server. Defaults to '443'.");
+            AddArgument("use-dcl", 0, 1, &mUseDCL, "Use DCL to fetch onboarding information");
             FALLTHROUGH;
         case PairingMode::CodePaseOnly:
             AddArgument("payload", &mOnboardingPayload);
@@ -114,6 +119,11 @@ public:
             AddArgument("use-only-onnetwork-discovery", 0, 1, &mUseOnlyOnNetworkDiscovery);
             break;
         case PairingMode::Ble:
+            AddArgument("skip-commissioning-complete", 0, 1, &mSkipCommissioningComplete);
+            AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode.emplace());
+            AddArgument("discriminator", 0, 4096, &mDiscriminator.emplace());
+            break;
+        case PairingMode::Nfc:
             AddArgument("skip-commissioning-complete", 0, 1, &mSkipCommissioningComplete);
             AddArgument("setup-pin-code", 0, 134217727, &mSetupPINCode.emplace());
             AddArgument("discriminator", 0, 4096, &mDiscriminator.emplace());
@@ -203,7 +213,21 @@ public:
             AddArgument("dst-offset", &mComplex_DSTOffsets,
                         "DSTOffset list to use when setting Time Synchronization cluster's DSTOffset attribute",
                         Argument::kOptional);
+
+            AddArgument("tc-acknowledgements", 0, UINT16_MAX, &mTCAcknowledgements,
+                        "Bit-field value indicating which Terms and Conditions have been accepted by the user. This value is sent "
+                        "to the device during commissioning via the General Commissioning cluster");
+
+            AddArgument("tc-acknowledgements-version", 0, UINT16_MAX, &mTCAcknowledgementVersion,
+                        "Version number of the Terms and Conditions that were accepted by the user. This value is sent to the "
+                        "device during commissioning to indicate which T&C version was acknowledged");
         }
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+        if ((mode == PairingMode::WiFiPAF) || (mode == PairingMode::Code))
+        {
+            AddArgument("freq", &mApFreqStr, "Frequency of the connected AP. It's required if AP is not at chnl#6 of 2.4G");
+        }
+#endif
 
         AddArgument("timeout", 0, UINT16_MAX, &mTimeout);
     }
@@ -240,6 +264,7 @@ private:
     CHIP_ERROR PairWithMdnsOrBleByIndexWithCode(NodeId remoteId, uint16_t index);
     CHIP_ERROR Unpair(NodeId remoteId);
     chip::Controller::CommissioningParameters GetCommissioningParameters();
+    CHIP_ERROR MaybeDisplayTermsAndConditions(chip::Controller::CommissioningParameters & params);
 
     const PairingMode mPairingMode;
     const PairingNetworkType mNetworkType;
@@ -260,13 +285,20 @@ private:
     chip::Optional<uint64_t> mICDMonitoredSubject;
     chip::Optional<chip::app::Clusters::IcdManagement::ClientTypeEnum> mICDClientType;
     chip::Optional<uint32_t> mICDStayActiveDurationMsec;
+    chip::Optional<uint16_t> mTCAcknowledgements;
+    chip::Optional<uint16_t> mTCAcknowledgementVersion;
+    chip::Optional<char *> mDCLHostName;
+    chip::Optional<uint16_t> mDCLPort;
+    chip::Optional<bool> mUseDCL;
     chip::app::DataModel::List<chip::app::Clusters::TimeSynchronization::Structs::TimeZoneStruct::Type> mTimeZoneList;
     TypedComplexArgument<chip::app::DataModel::List<chip::app::Clusters::TimeSynchronization::Structs::TimeZoneStruct::Type>>
         mComplex_TimeZones;
     chip::app::DataModel::List<chip::app::Clusters::TimeSynchronization::Structs::DSTOffsetStruct::Type> mDSTOffsetList;
     TypedComplexArgument<chip::app::DataModel::List<chip::app::Clusters::TimeSynchronization::Structs::DSTOffsetStruct::Type>>
         mComplex_DSTOffsets;
-
+#if CHIP_DEVICE_CONFIG_ENABLE_WIFIPAF
+    chip::Optional<char *> mApFreqStr;
+#endif
     uint16_t mRemotePort = 0;
     // mDiscriminator is only used for some situations, but in those situations
     // it's mandatory.  Track whether we're actually using it; the cases that do
