@@ -384,3 +384,6 @@
 [submodule "third_party/nxp/mw320_sdk/repo"]
 	path = third_party/nxp/mw320_sdk/repo
 	url = https://github.com/nxptest/mw320_sdk.git
+[submodule "third_party/pybind11/repo"]
+	path = third_party/pybind11/repo
+	url = https://github.com/pybind/pybind11.git
